@@ -61,11 +61,14 @@ def SICP_set(G, S, beta, T):
 
     node_to_edges = defaultdict(list)
     for eid, nodes in G.items():
+        # for u in sorted(nodes, key=str):
         for u in nodes:
+            # node_to_edges[u].sort();
             node_to_edges[u].append(eid)
 
     for _ in range(T):
-        cur = list(infected)
+        cur = sorted(infected, key=str)
+        # cur = list(infected)
         new_infected = set()
 
         for v in cur:
@@ -73,11 +76,11 @@ def SICP_set(G, S, beta, T):
             if not edges:
                 continue
             e = random.choice(edges)
-            for u in G[e]:
+            for u in sorted(G[e], key=str):
                 if u not in infected and random.random() < beta:
                     new_infected.add(u)
 
-        if not new_infected:
+        if not new_infected: #remove?
             break
 
         infected |= new_infected

@@ -91,7 +91,7 @@ def main():
     DATASET_LIST = ['Algebra', 'Geometry', 'Music-Rev', 'Restaurants-Rev', 'Bars-Rev', 'contact-high-school','contact-primary-school']
 
     DATASET = DATASET_LIST[0]  # Choose your dataset to run
-    METHOD = "degree"   # options: 'degree', 'hyperdegree', add your own method here
+    METHOD = "hyperdegree"   # options: 'degree', 'hyperdegree', add your own method here
     K = 10             # number of seeds to select
 
     graph, communities = load_graph(DATASET, None, verbose=True)
@@ -99,7 +99,7 @@ def main():
     seeds = select_seeds(graph, METHOD, K)
     print(f"\nSelected seeds by {METHOD} (K={K}): {seeds}")
 
-    #print(f"\nCommunity loaded: {len(communities)} communities")
+    print(f"\nCommunity loaded: {len(communities)} communities")
 
 
 

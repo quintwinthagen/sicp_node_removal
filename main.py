@@ -17,6 +17,8 @@ This script contains
 import random
 import statistics
 
+import numpy as np
+
 from config import L_DATASETS, EL_DATASETS, seed_set_degree
 from data_loader import (
     load_labeled_hypergraph,
@@ -72,10 +74,10 @@ def main():
     # All datasets available, you can add your own to the data_loader.py
     DATASET_LIST = ['Algebra', 'Geometry', 'Music-Rev', 'Restaurants-Rev', 'Bars-Rev', 'contact-high-school','contact-primary-school']
 
-    dataset = DATASET_LIST[0]  # Choose your dataset to run
+    dataset = DATASET_LIST[1]  # Choose your dataset to run
     BETA = 0.3               # Infection probability
     T = 25                     # Timesteps to run SICP for
-    RUNS = 100                  # Number of independent runs
+    RUNS = 25                  # Number of independent runs
     rng_seed = 79              # reproducible outcomes
 
     # Seed nodes to start infection from.  You can use the seed_selection.py script to generate seed sets with different methods and use them here. 
@@ -119,5 +121,56 @@ def main():
 
     return infected_results
 
+def node_removal():
+        # All datasets available, you can add your own to the data_loader.py
+    DATASET_LIST = ['Algebra', 'Geometry', 'contact-primary-school']
+
+    dataset_results = {}
+
+    BETA = 0.3               # Infection probability
+    T = 25                     # Timesteps to run SICP for
+    RUNS = 10                  # Number of independent runs
+    rng_seed = 175              # reproducible outcomes
+
+    for dataset in DATASET_LIST:
+        print(f"dataset ={dataset}, beta={BETA}, T={T}, runs={RUNS}, rng_seed={rng_seed}")
+        graph, communities = load_graph_and_communities(dataset, tau=2, verbose=True)
+        if communities:
+            print(f"\n=== community data loaded ({len(communities)} communities) ===")
+            comm_sizes = sorted([len(c) for c in communities.values()])
+            print(f"community sizes: {comm_sizes}")
+        else:
+            print("\nNo communities found for this dataset/tau combination")
+        
+        node_ids = set.union(*communities.values())
+        
+        results_per_seed = [len(node_ids)]
+
+        for single_seed in node_ids:
+
+            # Seed nodes to start infection from.  You can use the seed_selection.py script to generate seed sets with different methods and use them here. 
+            # Can be added to config.py for easier access across scripts.
+            # Be aware that seed nodes are dataset-specific, so make sure to use a seed set that corresponds to the dataset you choose to run SICP on.
+            seed_set = [single_seed]
+            print(f"seed set: {seed_set}")
+
+            # Run SICP multiple times with a controlled RNG seed per run
+            infected_results = []
+            infected_node_sets = []
+
+            for run in range(1, RUNS + 1):
+                random.seed(rng_seed + run)
+                infected_nodes = SICP_set(graph, seed_set, BETA, T)
+                infected_node_sets.append(infected_nodes)
+                infected_results.append(len(infected_nodes))
+
+            print(f"final count min={min(infected_results)}, max={max(infected_results)}, mean={statistics.mean(infected_results):.3f}, std={statistics.pstdev(infected_results):.3f}")
+            # You can also use SICP to get the full series of infections over time, but here we just report the final count per run.
+            # see the SICP function in methods/SICP.py for how to get the series
+
+            dataset_results[dataset] = infected_results
+    return dataset_results
+
 if __name__ == "__main__":
-    main()
+    # main()
+    node_removal()
