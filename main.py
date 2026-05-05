@@ -27,6 +27,7 @@ from data_loader import (
     load_edge_labeled_hypergraph_cd,
 )
 from methods.SICP import SICP_set, SICP
+from removal import remove_by_degree, remove_nodes
 
 
 
@@ -123,7 +124,8 @@ def main():
 
 def node_removal():
         # All datasets available, you can add your own to the data_loader.py
-    DATASET_LIST = ['Algebra', 'Geometry', 'contact-primary-school']
+    DATASET_LIST = ['contact-primary-school']
+    # DATASET_LIST = ['Algebra', 'Geometry', 'contact-primary-school']
 
     dataset_results = {}
 
@@ -134,7 +136,9 @@ def node_removal():
 
     for dataset in DATASET_LIST:
         print(f"dataset ={dataset}, beta={BETA}, T={T}, runs={RUNS}, rng_seed={rng_seed}")
-        graph, communities = load_graph_and_communities(dataset, tau=2, verbose=True)
+        temp_graph, communities = load_graph_and_communities(dataset, tau=2, verbose=True)
+        graph = remove_nodes(temp_graph, remove_by_degree(temp_graph, 0.01))
+        
         if communities:
             print(f"\n=== community data loaded ({len(communities)} communities) ===")
             comm_sizes = sorted([len(c) for c in communities.values()])
@@ -142,11 +146,16 @@ def node_removal():
         else:
             print("\nNo communities found for this dataset/tau combination")
         
-        node_ids = set.union(*communities.values())
+        node_ids = set.union(*graph.values())
         
-        results_per_seed = [len(node_ids)]
+        results_per_seed = {}
 
+        cnt = 0
         for single_seed in node_ids:
+            cnt+= 1
+            if cnt > 10: break
+
+            # print(type(single_seed))
 
             # Seed nodes to start infection from.  You can use the seed_selection.py script to generate seed sets with different methods and use them here. 
             # Can be added to config.py for easier access across scripts.
@@ -168,9 +177,14 @@ def node_removal():
             # You can also use SICP to get the full series of infections over time, but here we just report the final count per run.
             # see the SICP function in methods/SICP.py for how to get the series
 
-            dataset_results[dataset] = infected_results
+            results_per_seed[single_seed] = statistics.mean(infected_results)
+
+        print(f"=== Results for dataset {dataset} ===")
+        print(f"mean infected: {statistics.mean(results_per_seed.values())}")
+        dataset_results[dataset] = results_per_seed
+    
     return dataset_results
 
-if __name__ == "__main__":
+if __name__ == "__main__": 
     # main()
     node_removal()

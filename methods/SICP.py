@@ -80,8 +80,8 @@ def SICP_set(G, S, beta, T):
                 if u not in infected and random.random() < beta:
                     new_infected.add(u)
 
-        if not new_infected: #remove?
-            break
+        # if not new_infected: #remove?
+        #     break
 
         infected |= new_infected
 
