@@ -10,6 +10,7 @@ def SICP(G, S, beta, T, return_series=False):
     - T: number of timesteps
     - return_series: if True, return list of infected counts per timestep (len T+1); else final count
     """
+    raise NotImplementedError("function not in use")
 
     infected = set(S)
     series = [len(infected)]
