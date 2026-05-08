@@ -22,6 +22,7 @@ import numpy as np
 
 from config import L_DATASETS, EL_DATASETS, seed_set_degree
 from data_loader import (
+    get_graph_nodes,
     load_labeled_hypergraph,
     load_edge_labeled_hypergraph,
     load_labeled_hypergraph_cd,
@@ -30,11 +31,13 @@ from data_loader import (
 from methods.SICP import SICP_set, SICP
 
 from removal import (
+    avg_hyperedge_size_removal,
     remove_nodes, 
     degree_based_removal, 
     hyperdegree_based_removal,
     community_based_removal, 
     random_based_removal,
+    count_communities_in_hedges_removal,
 )
 
 def dataset_kind(dataset):
@@ -131,19 +134,19 @@ def main():
 def node_removal():
         # All datasets available, you can add your own to the data_loader.py
     # DATASET_LIST = ['contact-primary-school']
-    DATASET_LIST = ['Algebra']
-    # DATASET_LIST = ['Algebra', 'Geometry', 'contact-primary-school']
+    # DATASET_LIST = ['contact-primary-school']
+    DATASET_LIST = ['Algebra', 'Geometry', 'contact-primary-school']
 
     BETA = 0.3               # Infection probability
     T = 25                     # Timesteps to run SICP for
     RUNS = 10                  # Number of independent runs
     rng_seed = 175              # reproducible outcomes
     p = 0.2                # node removal fraction
-    seed_iterations = 100
+    seed_iterations = 50
 
     for dataset in DATASET_LIST:
         print(f"dataset={dataset}, beta={BETA}, T={T}, runs={RUNS}, rng_seed={rng_seed}, p={p}")
-        temp_graph, communities = load_graph_and_communities(dataset, tau=2, verbose=True)
+        temp_graph, communities = load_graph_and_communities(dataset, tau=None, verbose=True)
 
         all_nodes = set.union(*temp_graph.values())
         N_ = len(all_nodes)
@@ -157,12 +160,28 @@ def node_removal():
             print("\nNo communities found for this dataset/tau combination")
         
         graph_comm = remove_nodes(temp_graph, community_based_removal(temp_graph, communities, K))
+        graph_count_comms = remove_nodes(temp_graph, count_communities_in_hedges_removal(temp_graph, communities, K))
         graph_rand = remove_nodes(temp_graph, random_based_removal(temp_graph, K))
         graph_hdeg = remove_nodes(temp_graph, hyperdegree_based_removal(temp_graph, K))
         graph_deg  = remove_nodes(temp_graph, degree_based_removal(temp_graph, K))
+        graph_avg_degs = remove_nodes(temp_graph, avg_hyperedge_size_removal(temp_graph, K))
+
+        oc = len(get_graph_nodes(temp_graph))
+        lc = len(get_graph_nodes(graph_comm))
+        rc = len(get_graph_nodes(graph_rand))
+        hc = len(get_graph_nodes(graph_hdeg))
+        dc = len(get_graph_nodes(graph_deg))
+        ac = len(get_graph_nodes(graph_avg_degs))
+        print(oc, lc, rc, hc, dc, ac)
 
         rps_comm = run_configured_sicp(graph_comm, seed_iterations)
         print(f"results_comm: mean infected ({statistics.mean(rps_comm.values())})")
+
+        rps_count_comms = run_configured_sicp(graph_count_comms, seed_iterations)
+        print(f"results_count_comms: mean infected ({statistics.mean(rps_count_comms.values())})")
+
+        rps_avg_degs = run_configured_sicp(graph_avg_degs, seed_iterations)
+        print(f"results_avg_degs: mean infected ({statistics.mean(rps_avg_degs.values())})")
 
         rps_rand = run_configured_sicp(graph_rand, seed_iterations)
         print(f"results_rand: mean infected ({statistics.mean(rps_rand.values())})")

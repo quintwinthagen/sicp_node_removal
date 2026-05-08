@@ -1,6 +1,9 @@
 from collections import defaultdict
 import os
 
+def get_graph_nodes(graph):
+    return set.union(*graph.values())
+
 def load_hypergraph_from_txt(dataset):
     """
     Load a hypergraph from a txt file.
