@@ -14,6 +14,7 @@ This script contains
 - Optionally, you can also use SICP to report the number of infections at each timestep. See the SICP function in methods/SICP.py.
 
 """
+from collections import defaultdict
 import random
 import statistics
 import sys
@@ -32,12 +33,15 @@ from methods.SICP import SICP_set, SICP
 
 from removal import (
     avg_hyperedge_size_removal,
+    filtered_hyperdegree_removal,
     remove_nodes, 
     degree_based_removal, 
     hyperdegree_based_removal,
-    community_based_removal, 
+    count_ic_hedges, 
     random_based_removal,
     count_communities_in_hedges_removal,
+    ic_hedges_to_hdeg,
+    responsibility_weighted_hdeg_removal,
 )
 
 def dataset_kind(dataset):
@@ -135,18 +139,19 @@ def node_removal():
         # All datasets available, you can add your own to the data_loader.py
     # DATASET_LIST = ['contact-primary-school']
     # DATASET_LIST = ['contact-primary-school']
-    DATASET_LIST = ['Algebra', 'Geometry', 'contact-primary-school']
+    DATASET_LIST = ['Geometry']
+    DATASET_LIST = ['Algebra', 'Geometry']
 
     BETA = 0.3               # Infection probability
     T = 25                     # Timesteps to run SICP for
     RUNS = 10                  # Number of independent runs
     rng_seed = 175              # reproducible outcomes
-    p = 0.2                # node removal fraction
-    seed_iterations = 50
+    p = 0.05                # node removal fraction
+    seed_iterations = 20000
 
     for dataset in DATASET_LIST:
         print(f"dataset={dataset}, beta={BETA}, T={T}, runs={RUNS}, rng_seed={rng_seed}, p={p}")
-        temp_graph, communities = load_graph_and_communities(dataset, tau=None, verbose=True)
+        temp_graph, communities = load_graph_and_communities(dataset, tau=2, verbose=True)
 
         all_nodes = set.union(*temp_graph.values())
         N_ = len(all_nodes)
@@ -159,29 +164,41 @@ def node_removal():
         else:
             print("\nNo communities found for this dataset/tau combination")
         
-        graph_comm = remove_nodes(temp_graph, community_based_removal(temp_graph, communities, K))
-        graph_count_comms = remove_nodes(temp_graph, count_communities_in_hedges_removal(temp_graph, communities, K))
+        # graph_comm = remove_nodes(temp_graph, count_ic_hedges(temp_graph, communities, K))
+        # graph_ic_hdeg_fraction = remove_nodes(temp_graph, ic_hedges_to_hdeg(temp_graph, communities, K))
+        # graph_count_comms = remove_nodes(temp_graph, count_communities_in_hedges_removal(temp_graph, communities, K))
+        graph_responsibility_weighted_hdeg = remove_nodes(temp_graph, responsibility_weighted_hdeg_removal(temp_graph, communities, K))
+        graph_filtered_hyperdegree = remove_nodes(temp_graph, filtered_hyperdegree_removal(temp_graph, communities, K))
         graph_rand = remove_nodes(temp_graph, random_based_removal(temp_graph, K))
         graph_hdeg = remove_nodes(temp_graph, hyperdegree_based_removal(temp_graph, K))
         graph_deg  = remove_nodes(temp_graph, degree_based_removal(temp_graph, K))
-        graph_avg_degs = remove_nodes(temp_graph, avg_hyperedge_size_removal(temp_graph, K))
+        # graph_avg_degs = remove_nodes(temp_graph, avg_hyperedge_size_removal(temp_graph, K))
 
-        oc = len(get_graph_nodes(temp_graph))
-        lc = len(get_graph_nodes(graph_comm))
-        rc = len(get_graph_nodes(graph_rand))
-        hc = len(get_graph_nodes(graph_hdeg))
-        dc = len(get_graph_nodes(graph_deg))
-        ac = len(get_graph_nodes(graph_avg_degs))
-        print(oc, lc, rc, hc, dc, ac)
+        # oc = len(get_graph_nodes(temp_graph))
+        # lc = len(get_graph_nodes(graph_comm))
+        # rc = len(get_graph_nodes(graph_rand))
+        # hc = len(get_graph_nodes(graph_hdeg))
+        # dc = len(get_graph_nodes(graph_deg))
+        # ac = len(get_graph_nodes(graph_avg_degs))
+        # print(oc, lc, rc, hc, dc, ac)
 
-        rps_comm = run_configured_sicp(graph_comm, seed_iterations)
-        print(f"results_comm: mean infected ({statistics.mean(rps_comm.values())})")
+        # rps_comm = run_configured_sicp(graph_comm, seed_iterations)
+        # print(f"results_comm: mean infected ({statistics.mean(rps_comm.values())})")
 
-        rps_count_comms = run_configured_sicp(graph_count_comms, seed_iterations)
-        print(f"results_count_comms: mean infected ({statistics.mean(rps_count_comms.values())})")
+        # rps_ic_hdeg_fraction = run_configured_sicp(graph_ic_hdeg_fraction, seed_iterations)
+        # print(f"results_ic_hdeg_fraction: mean infected ({statistics.mean(rps_ic_hdeg_fraction.values())})")
 
-        rps_avg_degs = run_configured_sicp(graph_avg_degs, seed_iterations)
-        print(f"results_avg_degs: mean infected ({statistics.mean(rps_avg_degs.values())})")
+        # rps_count_comms = run_configured_sicp(graph_count_comms, seed_iterations)
+        # print(f"results_count_comms: mean infected ({statistics.mean(rps_count_comms.values())})")
+
+        # rps_avg_degs = run_configured_sicp(graph_avg_degs, seed_iterations)
+        # print(f"results_avg_degs: mean infected ({statistics.mean(rps_avg_degs.values())})")
+
+        rps_graph_responsibility_weighted_hdeg = run_configured_sicp(graph_responsibility_weighted_hdeg, seed_iterations)
+        print(f"results_graph_responsibility_weighted_hdeg: mean infected ({statistics.mean(rps_graph_responsibility_weighted_hdeg.values())})")
+
+        rps_graph_filtered_hyperdegree = run_configured_sicp(graph_filtered_hyperdegree, seed_iterations)
+        print(f"results_graph_filtered_hyperdegree: mean infected ({statistics.mean(rps_graph_filtered_hyperdegree.values())})")
 
         rps_rand = run_configured_sicp(graph_rand, seed_iterations)
         print(f"results_rand: mean infected ({statistics.mean(rps_rand.values())})")
@@ -202,6 +219,7 @@ def run_configured_sicp(
     rng_seed=175,
 ):
     node_ids = set.union(*graph.values())
+    prevalences_per_timestep = defaultdict(set)
     results_per_seed = {}
     cnt = 0
     for single_seed in node_ids:
@@ -226,12 +244,52 @@ def run_configured_sicp(
             infected_node_sets.append(infected_nodes)
             infected_results.append(len(infected_nodes))
 
+
         # print(f"final count min={min(infected_results)}, max={max(infected_results)}, mean={statistics.mean(infected_results):.3f}, std={statistics.pstdev(infected_results):.3f}")
         # You can also use SICP to get the full series of infections over time, but here we just report the final count per run.
         # see the SICP function in methods/SICP.py for how to get the series
 
         results_per_seed[single_seed] = statistics.mean(infected_results)
     return results_per_seed
+
+
+def run_configured_sicp_intermediates(
+    graph,
+    seed_iterations,
+    beta=0.3,
+    T=25,
+    runs=10,
+    rng_seed=175,
+):
+    node_ids = set.union(*graph.values())
+    prevalences_per_timestep = [[] for _ in range(T + 1)]
+    cnt = 0
+    for single_seed in node_ids:
+        cnt += 1
+        if cnt > seed_iterations: break
+
+        # print(type(single_seed))
+
+        # Seed nodes to start infection from.  You can use the seed_selection.py script to generate seed sets with different methods and use them here. 
+        # Can be added to config.py for easier access across scripts.
+        # Be aware that seed nodes are dataset-specific, so make sure to use a seed set that corresponds to the dataset you choose to run SICP on.
+        seed_set = [single_seed]
+        # print(f"seed set: {seed_set}")
+
+        for run in range(1, runs + 1):
+            random.seed(rng_seed + run)
+            infected_nodes_series = SICP(graph, seed_set, beta, T, return_series=True)
+            for idx, infected in enumerate(infected_nodes_series):
+                prevalences_per_timestep[idx].append(len(infected))
+            
+
+
+        # print(f"final count min={min(infected_results)}, max={max(infected_results)}, mean={statistics.mean(infected_results):.3f}, std={statistics.pstdev(infected_results):.3f}")
+        # You can also use SICP to get the full series of infections over time, but here we just report the final count per run.
+        # see the SICP function in methods/SICP.py for how to get the series
+
+    return [statistics.mean(step_values) if step_values else 0.0 for step_values in prevalences_per_timestep]
+
 
 if __name__ == "__main__": 
     # main()

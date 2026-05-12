@@ -8,12 +8,10 @@ def SICP(G, S, beta, T, return_series=False):
     - S: iterable of seed nodes
     - beta: infection probability 
     - T: number of timesteps
-    - return_series: if True, return list of infected counts per timestep (len T+1); else final count
+    - return_series: if True, return list of infected-node sets per timestep (len T+1); else final set
     """
-    raise NotImplementedError("function not in use")
-
     infected = set(S)
-    series = [len(infected)]
+    series = [set(infected)]
 
     # node -> list of incident edges (uniform choice over these)
     node_to_edges = defaultdict(list)
@@ -22,26 +20,26 @@ def SICP(G, S, beta, T, return_series=False):
             node_to_edges[u].append(eid)
 
     for _ in range(T):
-        cur = list(infected)           # snapshot ⇒ synchronous updates
+        cur = sorted(infected, key=str)
         new_infected = set()
 
         for v in cur:
             edges = node_to_edges.get(v)
             if not edges:
                 continue
-            e = random.choice(edges)        # choose ONE incident hyperedge uniformly
-            for u in G[e]:
+            e = random.choice(edges)
+            for u in sorted(G[e], key=str):
                 if u not in infected and random.random() < beta:
                     new_infected.add(u)
 
-        if not new_infected:
-            series.append(series[-1])
-            break
+        # if not new_infected:
+        #     series.append(series[-1])
+        #     break
 
         infected |= new_infected
-        series.append(len(infected))
+        series.append(set(infected))
 
-    return series if return_series else len(infected)
+    return series if return_series else infected
 
 # MIE needs the series
 # Greedy needs len(infected)
