@@ -18,6 +18,7 @@ from collections import defaultdict
 import random
 import statistics
 import sys
+import time
 
 import numpy as np
 
@@ -31,18 +32,20 @@ from data_loader import (
 )
 from methods.SICP import SICP_set, SICP
 
-from removal import (
-    avg_hyperedge_size_removal,
-    filtered_hyperdegree_removal,
-    remove_nodes, 
-    degree_based_removal, 
-    hyperdegree_based_removal,
-    count_ic_hedges, 
-    random_based_removal,
-    count_communities_in_hedges_removal,
-    ic_hedges_to_hdeg,
-    responsibility_weighted_hdeg_removal,
-)
+from removal import *
+# from removal import (
+#     # avg_hyperedge_size_removal,
+#     filtered_hyperdegree_removal,
+#     PHG_core_boundary_strategy,
+#     remove_nodes, 
+#     degree_based_removal, 
+#     hyperdegree_based_removal,
+#     # count_ic_hedges, 
+#     random_based_removal,
+#     # count_communities_in_hedges_removal,
+#     # ic_hedges_to_hdeg,
+#     responsibility_weighted_hdeg_removal,
+# )
 
 def dataset_kind(dataset):
     if dataset in L_DATASETS:
@@ -140,7 +143,7 @@ def node_removal():
     # DATASET_LIST = ['contact-primary-school']
     # DATASET_LIST = ['contact-primary-school']
     DATASET_LIST = ['Geometry']
-    DATASET_LIST = ['Algebra', 'Geometry']
+    # DATASET_LIST = ['Algebra', 'Geometry']
 
     BETA = 0.3               # Infection probability
     T = 25                     # Timesteps to run SICP for
@@ -167,11 +170,24 @@ def node_removal():
         # graph_comm = remove_nodes(temp_graph, count_ic_hedges(temp_graph, communities, K))
         # graph_ic_hdeg_fraction = remove_nodes(temp_graph, ic_hedges_to_hdeg(temp_graph, communities, K))
         # graph_count_comms = remove_nodes(temp_graph, count_communities_in_hedges_removal(temp_graph, communities, K))
-        graph_responsibility_weighted_hdeg = remove_nodes(temp_graph, responsibility_weighted_hdeg_removal(temp_graph, communities, K))
-        graph_filtered_hyperdegree = remove_nodes(temp_graph, filtered_hyperdegree_removal(temp_graph, communities, K))
+        # graph_PHG_core_boundary_strategy = remove_nodes(temp_graph, PHG_core_boundary_strategy(temp_graph, communities, K))
+        print(f"starting time: {time.asctime()}")
+        a = 0
+        # graph_jaccard_overlap = remove_nodes(temp_graph, jaccard_overlap(temp_graph, K))
+        # print(f"time checkpoint { (a := a+1)}: {time.asctime()}")
+
+        # graph_responsibility_weighted_hdeg = remove_nodes(temp_graph, responsibility_weighted_hdeg_removal(temp_graph, communities, K))
+        # graph_filtered_hyperdegree = remove_nodes(temp_graph, filtered_hyperdegree_removal(temp_graph, communities, K))
+        graph_ept_out_strength = remove_nodes(temp_graph, ept_out_strength(temp_graph, BETA, K))
+        print(f"time checkpoint { (a := a+1)}: {time.asctime()}")
         graph_rand = remove_nodes(temp_graph, random_based_removal(temp_graph, K))
+        print(f"time checkpoint { (a := a+1)}: {time.asctime()}")
         graph_hdeg = remove_nodes(temp_graph, hyperdegree_based_removal(temp_graph, K))
+        print(f"time checkpoint { (a := a+1)}: {time.asctime()}")
         graph_deg  = remove_nodes(temp_graph, degree_based_removal(temp_graph, K))
+        print(f"time checkpoint { (a := a+1)}: {time.asctime()}")
+
+
         # graph_avg_degs = remove_nodes(temp_graph, avg_hyperedge_size_removal(temp_graph, K))
 
         # oc = len(get_graph_nodes(temp_graph))
@@ -194,21 +210,34 @@ def node_removal():
         # rps_avg_degs = run_configured_sicp(graph_avg_degs, seed_iterations)
         # print(f"results_avg_degs: mean infected ({statistics.mean(rps_avg_degs.values())})")
 
-        rps_graph_responsibility_weighted_hdeg = run_configured_sicp(graph_responsibility_weighted_hdeg, seed_iterations)
-        print(f"results_graph_responsibility_weighted_hdeg: mean infected ({statistics.mean(rps_graph_responsibility_weighted_hdeg.values())})")
+        # rps_PHG_core_boundary_strategy = run_configured_sicp(graph_PHG_core_boundary_strategy, seed_iterations)
+        # print(f"PHG_core_boundary_strategy: mean infected ({statistics.mean(rps_PHG_core_boundary_strategy.values())})")
+        
+        # rps_jaccard_overlap = run_configured_sicp(graph_jaccard_overlap, seed_iterations)
+        # print(f"graph_jaccard_overlap: mean infected ({statistics.mean(rps_jaccard_overlap.values())})")
+        # print(f"time checkpoint { (a := a+1)}: {time.asctime()}")
 
-        rps_graph_filtered_hyperdegree = run_configured_sicp(graph_filtered_hyperdegree, seed_iterations)
-        print(f"results_graph_filtered_hyperdegree: mean infected ({statistics.mean(rps_graph_filtered_hyperdegree.values())})")
+        # rps_graph_responsibility_weighted_hdeg = run_configured_sicp(graph_responsibility_weighted_hdeg, seed_iterations)
+        # print(f"results_graph_responsibility_weighted_hdeg: mean infected ({statistics.mean(rps_graph_responsibility_weighted_hdeg.values())})")
+
+        # rps_graph_filtered_hyperdegree = run_configured_sicp(graph_filtered_hyperdegree, seed_iterations)
+        # print(f"results_graph_filtered_hyperdegree: mean infected ({statistics.mean(rps_graph_filtered_hyperdegree.values())})")
+
+        rps_ept_out_strength = run_configured_sicp(graph_ept_out_strength, seed_iterations)
+        print(f"results_ept_out_strength mean infected ({statistics.mean(rps_ept_out_strength.values())})")
+        print(f"time checkpoint { (a := a+1)}: {time.asctime()}")
 
         rps_rand = run_configured_sicp(graph_rand, seed_iterations)
         print(f"results_rand: mean infected ({statistics.mean(rps_rand.values())})")
-        
+        print(f"time checkpoint { (a := a+1)}: {time.asctime()}")
+
         rps_hdeg = run_configured_sicp(graph_hdeg, seed_iterations)
         print(f"results_hdeg: mean infected ({statistics.mean(rps_hdeg.values())})")
-        
+        print(f"time checkpoint { (a := a+1)}: {time.asctime()}")
+
         rps_deg  = run_configured_sicp(graph_deg, seed_iterations)
         print(f"results_deg : mean infected ({statistics.mean(rps_deg.values() )})")
-
+        print(f"time checkpoint { (a := a+1)}: {time.asctime()}")   
 
 def run_configured_sicp(
     graph,
@@ -266,7 +295,7 @@ def run_configured_sicp_intermediates(
     cnt = 0
     for single_seed in node_ids:
         cnt += 1
-        if cnt > seed_iterations: break
+        if seed_iterations and (cnt > seed_iterations): break
 
         # print(type(single_seed))
 
@@ -282,8 +311,6 @@ def run_configured_sicp_intermediates(
             for idx, infected in enumerate(infected_nodes_series):
                 prevalences_per_timestep[idx].append(len(infected))
             
-
-
         # print(f"final count min={min(infected_results)}, max={max(infected_results)}, mean={statistics.mean(infected_results):.3f}, std={statistics.pstdev(infected_results):.3f}")
         # You can also use SICP to get the full series of infections over time, but here we just report the final count per run.
         # see the SICP function in methods/SICP.py for how to get the series

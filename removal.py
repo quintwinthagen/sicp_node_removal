@@ -3,6 +3,7 @@ from collections import Counter, defaultdict
 import random
 
 from methods.baselines import degree, hyperdegree
+from ept import build_ept
 
 def inverse_communities(communities):
     node_to_comm = {}
@@ -17,6 +18,70 @@ def inverse_graph(graph):
         for node in nodes:
             node_to_hedge[node].append(hedge)
     return node_to_hedge
+
+
+def generalized_jaccard(sets_list):
+    if not sets_list:
+        return 0.0
+
+    intersection = set.intersection(*sets_list)
+    union = set.union(*sets_list)
+
+    # Avoid division by zero
+    if len(union) == 0:
+        return 0.0
+
+    return len(intersection) / len(union)
+
+
+def ept_out_strength(graph, beta, K):
+    ept = build_ept(graph, beta)
+
+    score = {v : (sum(weights.values())) for v, weights in ept.items()}
+    return sorted(
+        score.keys(),
+        key=lambda n: (score[n], str(n)),
+        reverse=True,
+    )[:K]
+
+
+def average_pairwise_jaccard(sets_list):
+    if len(sets_list) < 2:
+        return 0.0
+
+    total = 0.0
+    count = 0
+    for i in range(len(sets_list)):
+        for j in range(i + 1, len(sets_list)):
+            a = sets_list[i]
+            b = sets_list[j]
+            union = a | b
+            if not union:
+                continue
+            total += len(a & b) / len(union)
+            count += 1
+
+    return total / count if count else 0.0
+
+
+def jaccard_overlap(graph, K):
+    """Select connector-like nodes whose incident hyperedges have low overlap among neighbors."""
+    score = {}
+    inv_graph = inverse_graph(graph)
+
+    for node, hedges in inv_graph.items():
+        if len(hedges) <= 1:
+            continue
+
+        edge_sets = [set(graph[hedge]) - {node} for hedge in hedges]
+        mean_similarity = average_pairwise_jaccard(edge_sets)
+        score[node] = 1.0 - mean_similarity
+
+    return sorted(
+        score.keys(),
+        key=lambda n: (score[n], str(n)),
+        reverse=True,
+    )[:K]
 
 
 def count_communities_in_hedges_removal(graph, communities, K):
@@ -150,21 +215,166 @@ def filtered_hyperdegree_removal(graph, communities, K):
     return sorted(score, key=score.get, reverse=True)[:K]
 
 
+def PHG_core_boundary_strategy(graph, communities, K):
+    inv_comm = inverse_communities(communities)
+    inv_graph = inverse_graph(graph)
+
+    # --- Degree (C_D) ---
+    degs = defaultdict(int)
+    for node, hedges in inv_graph.items():
+        for hedge in hedges:
+            degs[node] += len(graph.get(hedge, [])) - 1
+
+    # --- Community sizes ---
+    comm_sizes = {c: len(nodes) for c, nodes in communities.items()}
+
+    # --- CN(v) and AvgNS(v) ---
+    CN = {}
+    AvgNS = {}
+
+    for node, hedges in inv_graph.items():
+        node_comm = inv_comm.get(node, "UNK")
+        if node_comm == "UNK":
+            continue
+
+        neighbor_comms = set()
+
+        for hedge in hedges:
+            for neigh in graph.get(hedge, []):
+                if neigh == node:
+                    continue
+                neigh_comm = inv_comm.get(neigh, "UNK")
+                if neigh_comm == "UNK":
+                    continue
+                if neigh_comm != node_comm:
+                    neighbor_comms.add(neigh_comm)
+
+        CN[node] = len(neighbor_comms)
+
+        if CN[node] == 0:
+            AvgNS[node] = 0.0
+        else:
+            AvgNS[node] = sum(comm_sizes[c] for c in neighbor_comms) / CN[node]
+
+    # --- CS(v): own community size ---
+    CS = {node: comm_sizes.get(inv_comm.get(node), 0) for node in inv_graph.keys()}
+
+    # --- Min-max normalization ---
+    def normalize(d):
+        vals = list(d.values())
+        mn, mx = min(vals), max(vals)
+        if mx == mn:
+            return {k: 0.0 for k in d}
+        return {k: (v - mn) / (mx - mn) for k, v in d.items()}
+
+    degs_n = normalize(degs)
+    CN_n = normalize(CN)
+    AvgNS_n = normalize(AvgNS)
+    CS_n = normalize(CS)
+
+    # --- Boundary detection ---
+    is_boundary = {node: (CN.get(node, 0) > 0) for node in inv_graph.keys()}
+
+    # --- Community Influence (CI) ---
+    CI = {}
+
+    for node in inv_graph.keys():
+        if is_boundary[node]:
+            CI[node] = (
+                degs_n.get(node, 0.0)
+                + CN_n.get(node, 0.0)
+                + AvgNS_n.get(node, 0.0)
+            ) / 3.0
+        else:
+            CI[node] = (
+                degs_n.get(node, 0.0)
+                + CS_n.get(node, 0.0)
+            ) / 2.0
+
+    # --- Return top K ---
+    return sorted(CI.keys(), key=CI.get, reverse=True)[:K]
 
 
-# def avg_hyperedge_size_removal(graph, K):
-#     """Rank nodes by average size of their incident hyperedges."""
+def PHG_community_influence(graph, communities, K):
+    # for boundary nodes (nodes that connect multiple communities):
+    # (hyper)degree of node + number of connected communities + (average size of communities)/3
+
+    inv_comm = inverse_communities(communities)
+
+    # hyperdegree (not used currently)
     
-#     c = defaultdict(list)
-#     for _, nodes in graph.items():
-#         for n in nodes:
-#             c[n].append(len(nodes))
-#     avg = {}
-#     for node, sizes in c.items():
-#         avg[node] = sum(sizes) / len(sizes)
+    inv_graph = inverse_graph(graph)
+    hdegs = { node: len(hedges) for node, hedges in inv_graph.items()}
+
+    # degree
+
+    degs = defaultdict(int)
+    for node, hedges in inv_graph.items():
+        for hedge in hedges:
+            degs[node] += len(graph.get(hedge, []))-1
+
     
-#     ranking = sorted(avg.keys(), key=lambda i: avg[i], reverse=True)
-#     return ranking[:K]
+    # number of connected communities
+    
+    # AvgNs (average size of communities of neighbours)
+
+    comm_sizes = {comm: len(nodes) for comm, nodes in communities.items()}
+
+    connected_community_count = {} # CN(v)
+    avg_neighbor_comm_size = {}  # AvgNS(v)
+
+    for node, hedges in inv_graph.items():
+        node_comm = inv_comm.get(node, "UNK")
+        if node_comm == "UNK":
+            continue
+
+        neighbor_comms = set()
+
+        for hedge in hedges:
+            for neighbor in graph.get(hedge, []):
+                if neighbor == node:
+                    continue
+                neigh_comm = inv_comm.get(neighbor, "UNK")
+                if neigh_comm == "UNK":
+                    continue
+                if neigh_comm != node_comm:
+                    neighbor_comms.add(neigh_comm)
+        
+        connected_community_count[node] = len(neighbor_comms)
+
+        cn = len(neighbor_comms)
+        if cn == 0:
+            avg_neighbor_comm_size[node] = 0.0
+        else:
+            avg_neighbor_comm_size[node] = sum(comm_sizes[c] for c in neighbor_comms) / cn
+    
+    community_influence_measure = defaultdict(float)
+
+    for node, measure in degs.items():
+        community_influence_measure[node] += measure
+
+    for node, measure in connected_community_count.items():
+        community_influence_measure[node] += measure
+
+    for node, measure in avg_neighbor_comm_size.items():
+        community_influence_measure[node] += measure / 3.0
+
+    return sorted(community_influence_measure.keys(), key=community_influence_measure.get, reverse=True)[:K]
+
+
+def avg_hyperedge_size_removal(graph, K):
+    """Rank nodes by average size of their incident hyperedges."""
+    
+    c = defaultdict(list)
+    for _, nodes in graph.items():
+        for n in nodes:
+            c[n].append(len(nodes))
+    avg = {}
+    for node, sizes in c.items():
+        avg[node] = sum(sizes) / len(sizes)
+    
+    ranking = sorted(avg.keys(), key=lambda i: avg[i], reverse=True)
+    return ranking[:K]
     
 
 def hyperdegree_based_removal(graph, K):
