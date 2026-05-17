@@ -20,63 +20,181 @@ def inverse_graph(graph):
     return node_to_hedge
 
 
-def generalized_jaccard(sets_list):
-    if not sets_list:
-        return 0.0
+def _ept_bridge_strengths(graph, communities, beta):
+    """
+    Returns:
+      bridge_out[u] = sum_{v: c(v)!=c(u)} W[u][v]
+      bridge_in[v]  = sum_{u: c(u)!=c(v)} W[u][v]
+      out_strength[u] = sum_v W[u][v]
+    Skips nodes not found in inv_comm (treated as UNK).
+    """
+    inv_comm = inverse_communities(communities)
+    ept = build_ept(graph, beta)
 
-    intersection = set.intersection(*sets_list)
-    union = set.union(*sets_list)
+    bridge_out = defaultdict(float)
+    bridge_in  = defaultdict(float)
+    out_strength = defaultdict(float)
 
-    # Avoid division by zero
-    if len(union) == 0:
-        return 0.0
+    for u, nbrs in ept.items():
+        cu = inv_comm.get(u, None)
+        if cu is None:
+            continue
+        for v, w_uv in nbrs.items():
+            cv = inv_comm.get(v, None)
+            if cv is None:
+                continue
+            out_strength[u] += w_uv
+            if cu != cv:
+                bridge_out[u] += w_uv
+                bridge_in[v]  += w_uv
 
-    return len(intersection) / len(union)
+    return bridge_out, bridge_in, out_strength
+
+
+def ept_bridge_out_strength_removal(graph, communities, beta, K):
+    bridge_out, _, _ = _ept_bridge_strengths(graph, communities, beta)
+    return sorted(bridge_out.keys(),
+                  key=lambda u: (bridge_out[u], str(u)),
+                  reverse=True)[:K]
+
+
+def ept_bridge_in_strength_removal(graph, communities, beta, K):
+    _, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
+    return sorted(bridge_in.keys(),
+                  key=lambda v: (bridge_in[v], str(v)),
+                  reverse=True)[:K]
+
+
+
+def ept_boundary_strength_removal(graph, communities, beta, K):
+    bridge_out, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
+    nodes = set(bridge_out) | set(bridge_in)
+
+    score = {x: bridge_out[x] + bridge_in[x] for x in nodes}
+    return sorted(nodes, key=lambda x: (score[x], str(x)), reverse=True)[:K]
+
+
+
+def ept_bridge_out_fraction_removal(graph, communities, beta, K, eps=1e-12):
+    bridge_out, _, out_strength = _ept_bridge_strengths(graph, communities, beta)
+
+    score = {}
+    for u in out_strength:
+        score[u] = bridge_out[u] / (out_strength[u] + eps)
+
+    return sorted(score.keys(), key=lambda u: (score[u], str(u)), reverse=True)[:K]
+
+
+def ept_bridge_broker_removal(graph, communities, beta, K, eps=1e-12):
+    bridge_out, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
+    nodes = set(bridge_out) | set(bridge_in)
+
+    score = {x: (bridge_in[x] + eps) * (bridge_out[x] + eps) for x in nodes}
+    return sorted(nodes, key=lambda x: (score[x], str(x)), reverse=True)[:K]
+
+
+
+def ept_boundary_ratio_removal(graph, communities, beta, K, eps=1e-12):
+    inv_comm = inverse_communities(communities)
+    ept = build_ept(graph, beta)
+
+    bridge_out = defaultdict(float)
+    within_out = defaultdict(float)
+
+    for u, nbrs in ept.items():
+        cu = inv_comm.get(u, None)
+        if cu is None:
+            continue
+        for v, w_uv in nbrs.items():
+            cv = inv_comm.get(v, None)
+            if cv is None:
+                continue
+            if cu == cv:
+                within_out[u] += w_uv
+            else:
+                bridge_out[u] += w_uv
+
+    nodes = set(bridge_out) | set(within_out)
+    score = {u: bridge_out[u] / (within_out[u] + eps) for u in nodes}
+
+    return sorted(nodes, key=lambda u: (score[u], str(u)), reverse=True)[:K]
+
+
+def ept_broker_strength(graph, beta, K, eps=1e-12):
+    ept = build_ept(graph, beta)
+
+    out_s = defaultdict(float)
+    in_s  = defaultdict(float)
+    nodes = set()
+
+    for u, nbrs in ept.items():
+        nodes.add(u)
+        for v, w in nbrs.items():
+            nodes.add(v)
+            out_s[u] += w
+            in_s[v]  += w
+
+    score = {u: (in_s[u] + eps) * (out_s[u] + eps) for u in nodes}
+    return sorted(score, key=score.get, reverse=True)[:K]
+
+
+def ept_pagerank_removal(graph, beta, K, d=0.85, iters=50):
+    ept = build_ept(graph, beta)
+
+    # Collect all nodes
+    nodes = set(ept.keys())
+    for u, nbrs in ept.items():
+        nodes.update(nbrs.keys())
+    nodes = list(nodes)
+    idx = {u:i for i,u in enumerate(nodes)}
+    n = len(nodes)
+
+    # Normalize outgoing weights to probabilities
+    out_sum = defaultdict(float)
+    for u, nbrs in ept.items():
+        out_sum[u] = sum(nbrs.values())
+
+    # PageRank vector
+    pr = [1.0 / n] * n
+    base = (1.0 - d) / n
+
+    for _ in range(iters):
+        new = [base] * n
+
+        # Distribute rank along normalized EPT edges
+        for u, nbrs in ept.items():
+            su = out_sum[u]
+            if su <= 0:
+                continue
+            pu = pr[idx[u]]
+            for v, w in nbrs.items():
+                new[idx[v]] += d * pu * (w / su)
+
+        pr = new
+
+    score = {u: pr[idx[u]] for u in nodes}
+    return sorted(score, key=score.get, reverse=True)[:K]
+
+
+def ept_total_strength(graph, beta, K):
+    ept = build_ept(graph, beta)
+
+    out_s = defaultdict(float)
+    in_s  = defaultdict(float)
+
+    for u, nbrs in ept.items():
+        for v, w in nbrs.items():
+            out_s[u] += w
+            in_s[v]  += w
+
+    score = {u: out_s[u] + in_s[u] for u in set(out_s) | set(in_s)}
+    return sorted(score, key=score.get, reverse=True)[:K]
 
 
 def ept_out_strength(graph, beta, K):
     ept = build_ept(graph, beta)
 
     score = {v : (sum(weights.values())) for v, weights in ept.items()}
-    return sorted(
-        score.keys(),
-        key=lambda n: (score[n], str(n)),
-        reverse=True,
-    )[:K]
-
-
-def average_pairwise_jaccard(sets_list):
-    if len(sets_list) < 2:
-        return 0.0
-
-    total = 0.0
-    count = 0
-    for i in range(len(sets_list)):
-        for j in range(i + 1, len(sets_list)):
-            a = sets_list[i]
-            b = sets_list[j]
-            union = a | b
-            if not union:
-                continue
-            total += len(a & b) / len(union)
-            count += 1
-
-    return total / count if count else 0.0
-
-
-def jaccard_overlap(graph, K):
-    """Select connector-like nodes whose incident hyperedges have low overlap among neighbors."""
-    score = {}
-    inv_graph = inverse_graph(graph)
-
-    for node, hedges in inv_graph.items():
-        if len(hedges) <= 1:
-            continue
-
-        edge_sets = [set(graph[hedge]) - {node} for hedge in hedges]
-        mean_similarity = average_pairwise_jaccard(edge_sets)
-        score[node] = 1.0 - mean_similarity
-
     return sorted(
         score.keys(),
         key=lambda n: (score[n], str(n)),
@@ -392,6 +510,7 @@ def random_based_removal(graph, K):
 
 def remove_nodes(graph, node_ids):
     removed_graph = {}
+    node_ids = {str(node_id) for node_id in node_ids}
     for edge_id, nodes in graph.items():
         s = {node for node in nodes if str(node) not in node_ids}
         if s:
