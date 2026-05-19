@@ -6,7 +6,7 @@ on:
 jobs:
   run-sim:
     runs-on: [self-hosted, linux, x64, sim, docker]
-
+    timeout-minutes: 1440
     container:
       image: python:3.12-slim
       options: --volume /srv:/srv
