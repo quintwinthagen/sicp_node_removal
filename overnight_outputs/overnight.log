@@ -1,0 +1,30 @@
+
+======================================================================
+[1/2] Dataset: Bars-Rev
+======================================================================
+  Loading graph...
+  OK Loaded: 1194 hyperedges, 1234 nodes
+
+  [1/3] p=0.05 (K=61 nodes to remove)
+    Computing removal strategies...
+      OK degree
+      OK hyperdegree
+      OK random
+      OK avg_hyperedge_size
+      OK ept_total_strength
+      OK ept_bridge_in_strength
+    Removal strategies done in 0.2s
+    Running SICP simulations...
+Traceback (most recent call last):
+  File "C:\Users\winti\Dropbox\Quint_Delft\Documents_Dropbox\CSE\Y3\Q4\code\SICP-on-hypergraphs-main\overnight_sim.py", line 158, in <module>
+    run_sims()
+  File "C:\Users\winti\Dropbox\Quint_Delft\Documents_Dropbox\CSE\Y3\Q4\code\SICP-on-hypergraphs-main\overnight_sim.py", line 109, in run_sims
+    mean_counts = run_configured_sicp_intermediates(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\winti\Dropbox\Quint_Delft\Documents_Dropbox\CSE\Y3\Q4\code\SICP-on-hypergraphs-main\main.py", line 310, in run_configured_sicp_intermediates
+    infected_nodes_series = SICP(graph, seed_set, beta, T, return_series=True)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\winti\Dropbox\Quint_Delft\Documents_Dropbox\CSE\Y3\Q4\code\SICP-on-hypergraphs-main\methods\SICP.py", line 27, in SICP
+    edges = node_to_edges.get(v)
+            ^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

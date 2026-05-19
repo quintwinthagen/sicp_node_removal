@@ -64,6 +64,20 @@ def ept_bridge_in_strength_removal(graph, communities, beta, K):
                   key=lambda v: (bridge_in[v], str(v)),
                   reverse=True)[:K]
 
+def ept_bridge_in_and_out_total(graph, communities, beta, K):
+    ept = build_ept(graph, beta)
+    _, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
+
+    out_s = defaultdict(float)
+    in_s  = defaultdict(float)
+
+    for u, nbrs in ept.items():
+        for v, w in nbrs.items():
+            out_s[u] += w
+            in_s[v]  += w
+
+    score = {u: out_s[u] + in_s[u] + 2 * bridge_in[u] for u in set(out_s) | set(in_s)}
+    return sorted(score, key=score.get, reverse=True)[:K]
 
 
 def ept_boundary_strength_removal(graph, communities, beta, K):
@@ -333,151 +347,151 @@ def filtered_hyperdegree_removal(graph, communities, K):
     return sorted(score, key=score.get, reverse=True)[:K]
 
 
-def PHG_core_boundary_strategy(graph, communities, K):
-    inv_comm = inverse_communities(communities)
-    inv_graph = inverse_graph(graph)
+# def PHG_core_boundary_strategy(graph, communities, K):
+#     inv_comm = inverse_communities(communities)
+#     inv_graph = inverse_graph(graph)
 
-    # --- Degree (C_D) ---
-    degs = defaultdict(int)
-    for node, hedges in inv_graph.items():
-        for hedge in hedges:
-            degs[node] += len(graph.get(hedge, [])) - 1
+#     # --- Degree (C_D) ---
+#     degs = defaultdict(int)
+#     for node, hedges in inv_graph.items():
+#         for hedge in hedges:
+#             degs[node] += len(graph.get(hedge, [])) - 1
 
-    # --- Community sizes ---
-    comm_sizes = {c: len(nodes) for c, nodes in communities.items()}
+#     # --- Community sizes ---
+#     comm_sizes = {c: len(nodes) for c, nodes in communities.items()}
 
-    # --- CN(v) and AvgNS(v) ---
-    CN = {}
-    AvgNS = {}
+#     # --- CN(v) and AvgNS(v) ---
+#     CN = {}
+#     AvgNS = {}
 
-    for node, hedges in inv_graph.items():
-        node_comm = inv_comm.get(node, "UNK")
-        if node_comm == "UNK":
-            continue
+#     for node, hedges in inv_graph.items():
+#         node_comm = inv_comm.get(node, "UNK")
+#         if node_comm == "UNK":
+#             continue
 
-        neighbor_comms = set()
+#         neighbor_comms = set()
 
-        for hedge in hedges:
-            for neigh in graph.get(hedge, []):
-                if neigh == node:
-                    continue
-                neigh_comm = inv_comm.get(neigh, "UNK")
-                if neigh_comm == "UNK":
-                    continue
-                if neigh_comm != node_comm:
-                    neighbor_comms.add(neigh_comm)
+#         for hedge in hedges:
+#             for neigh in graph.get(hedge, []):
+#                 if neigh == node:
+#                     continue
+#                 neigh_comm = inv_comm.get(neigh, "UNK")
+#                 if neigh_comm == "UNK":
+#                     continue
+#                 if neigh_comm != node_comm:
+#                     neighbor_comms.add(neigh_comm)
 
-        CN[node] = len(neighbor_comms)
+#         CN[node] = len(neighbor_comms)
 
-        if CN[node] == 0:
-            AvgNS[node] = 0.0
-        else:
-            AvgNS[node] = sum(comm_sizes[c] for c in neighbor_comms) / CN[node]
+#         if CN[node] == 0:
+#             AvgNS[node] = 0.0
+#         else:
+#             AvgNS[node] = sum(comm_sizes[c] for c in neighbor_comms) / CN[node]
 
-    # --- CS(v): own community size ---
-    CS = {node: comm_sizes.get(inv_comm.get(node), 0) for node in inv_graph.keys()}
+#     # --- CS(v): own community size ---
+#     CS = {node: comm_sizes.get(inv_comm.get(node), 0) for node in inv_graph.keys()}
 
-    # --- Min-max normalization ---
-    def normalize(d):
-        vals = list(d.values())
-        mn, mx = min(vals), max(vals)
-        if mx == mn:
-            return {k: 0.0 for k in d}
-        return {k: (v - mn) / (mx - mn) for k, v in d.items()}
+#     # --- Min-max normalization ---
+#     def normalize(d):
+#         vals = list(d.values())
+#         mn, mx = min(vals), max(vals)
+#         if mx == mn:
+#             return {k: 0.0 for k in d}
+#         return {k: (v - mn) / (mx - mn) for k, v in d.items()}
 
-    degs_n = normalize(degs)
-    CN_n = normalize(CN)
-    AvgNS_n = normalize(AvgNS)
-    CS_n = normalize(CS)
+#     degs_n = normalize(degs)
+#     CN_n = normalize(CN)
+#     AvgNS_n = normalize(AvgNS)
+#     CS_n = normalize(CS)
 
-    # --- Boundary detection ---
-    is_boundary = {node: (CN.get(node, 0) > 0) for node in inv_graph.keys()}
+#     # --- Boundary detection ---
+#     is_boundary = {node: (CN.get(node, 0) > 0) for node in inv_graph.keys()}
 
-    # --- Community Influence (CI) ---
-    CI = {}
+#     # --- Community Influence (CI) ---
+#     CI = {}
 
-    for node in inv_graph.keys():
-        if is_boundary[node]:
-            CI[node] = (
-                degs_n.get(node, 0.0)
-                + CN_n.get(node, 0.0)
-                + AvgNS_n.get(node, 0.0)
-            ) / 3.0
-        else:
-            CI[node] = (
-                degs_n.get(node, 0.0)
-                + CS_n.get(node, 0.0)
-            ) / 2.0
+#     for node in inv_graph.keys():
+#         if is_boundary[node]:
+#             CI[node] = (
+#                 degs_n.get(node, 0.0)
+#                 + CN_n.get(node, 0.0)
+#                 + AvgNS_n.get(node, 0.0)
+#             ) / 3.0
+#         else:
+#             CI[node] = (
+#                 degs_n.get(node, 0.0)
+#                 + CS_n.get(node, 0.0)
+#             ) / 2.0
 
-    # --- Return top K ---
-    return sorted(CI.keys(), key=CI.get, reverse=True)[:K]
+#     # --- Return top K ---
+#     return sorted(CI.keys(), key=CI.get, reverse=True)[:K]
 
 
-def PHG_community_influence(graph, communities, K):
-    # for boundary nodes (nodes that connect multiple communities):
-    # (hyper)degree of node + number of connected communities + (average size of communities)/3
+# def PHG_community_influence(graph, communities, K):
+#     # for boundary nodes (nodes that connect multiple communities):
+#     # (hyper)degree of node + number of connected communities + (average size of communities)/3
 
-    inv_comm = inverse_communities(communities)
+#     inv_comm = inverse_communities(communities)
 
-    # hyperdegree (not used currently)
+#     # hyperdegree (not used currently)
     
-    inv_graph = inverse_graph(graph)
-    hdegs = { node: len(hedges) for node, hedges in inv_graph.items()}
+#     inv_graph = inverse_graph(graph)
+#     hdegs = { node: len(hedges) for node, hedges in inv_graph.items()}
 
-    # degree
+#     # degree
 
-    degs = defaultdict(int)
-    for node, hedges in inv_graph.items():
-        for hedge in hedges:
-            degs[node] += len(graph.get(hedge, []))-1
+#     degs = defaultdict(int)
+#     for node, hedges in inv_graph.items():
+#         for hedge in hedges:
+#             degs[node] += len(graph.get(hedge, []))-1
 
     
-    # number of connected communities
+#     # number of connected communities
     
-    # AvgNs (average size of communities of neighbours)
+#     # AvgNs (average size of communities of neighbours)
 
-    comm_sizes = {comm: len(nodes) for comm, nodes in communities.items()}
+#     comm_sizes = {comm: len(nodes) for comm, nodes in communities.items()}
 
-    connected_community_count = {} # CN(v)
-    avg_neighbor_comm_size = {}  # AvgNS(v)
+#     connected_community_count = {} # CN(v)
+#     avg_neighbor_comm_size = {}  # AvgNS(v)
 
-    for node, hedges in inv_graph.items():
-        node_comm = inv_comm.get(node, "UNK")
-        if node_comm == "UNK":
-            continue
+#     for node, hedges in inv_graph.items():
+#         node_comm = inv_comm.get(node, "UNK")
+#         if node_comm == "UNK":
+#             continue
 
-        neighbor_comms = set()
+#         neighbor_comms = set()
 
-        for hedge in hedges:
-            for neighbor in graph.get(hedge, []):
-                if neighbor == node:
-                    continue
-                neigh_comm = inv_comm.get(neighbor, "UNK")
-                if neigh_comm == "UNK":
-                    continue
-                if neigh_comm != node_comm:
-                    neighbor_comms.add(neigh_comm)
+#         for hedge in hedges:
+#             for neighbor in graph.get(hedge, []):
+#                 if neighbor == node:
+#                     continue
+#                 neigh_comm = inv_comm.get(neighbor, "UNK")
+#                 if neigh_comm == "UNK":
+#                     continue
+#                 if neigh_comm != node_comm:
+#                     neighbor_comms.add(neigh_comm)
         
-        connected_community_count[node] = len(neighbor_comms)
+#         connected_community_count[node] = len(neighbor_comms)
 
-        cn = len(neighbor_comms)
-        if cn == 0:
-            avg_neighbor_comm_size[node] = 0.0
-        else:
-            avg_neighbor_comm_size[node] = sum(comm_sizes[c] for c in neighbor_comms) / cn
+#         cn = len(neighbor_comms)
+#         if cn == 0:
+#             avg_neighbor_comm_size[node] = 0.0
+#         else:
+#             avg_neighbor_comm_size[node] = sum(comm_sizes[c] for c in neighbor_comms) / cn
     
-    community_influence_measure = defaultdict(float)
+#     community_influence_measure = defaultdict(float)
 
-    for node, measure in degs.items():
-        community_influence_measure[node] += measure
+#     for node, measure in degs.items():
+#         community_influence_measure[node] += measure
 
-    for node, measure in connected_community_count.items():
-        community_influence_measure[node] += measure
+#     for node, measure in connected_community_count.items():
+#         community_influence_measure[node] += measure
 
-    for node, measure in avg_neighbor_comm_size.items():
-        community_influence_measure[node] += measure / 3.0
+#     for node, measure in avg_neighbor_comm_size.items():
+#         community_influence_measure[node] += measure / 3.0
 
-    return sorted(community_influence_measure.keys(), key=community_influence_measure.get, reverse=True)[:K]
+#     return sorted(community_influence_measure.keys(), key=community_influence_measure.get, reverse=True)[:K]
 
 
 def avg_hyperedge_size_removal(graph, K):

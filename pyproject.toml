@@ -5,12 +5,18 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "fastjsonschema>=2.21.2",
+    "h-louvain",
     "matplotlib>=3.10.9",
     "numpy>=2.4.4",
     "pandas>=3.0.3",
+    "scikit-learn==1.5.2",
 ]
 
 [dependency-groups]
 dev = [
     "ipykernel>=7.2.0",
 ]
+
+[tool.uv.sources]
+h-louvain = { path = "../h-louvain-main", editable = true }
