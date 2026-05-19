@@ -1,36 +1,30 @@
-
 name: Run Simulation
 
 on:
-  workflow_dispatch:  # manual trigger
-  push:
-    branches: [master]
+  workflow_dispatch:
 
 jobs:
   run-sim:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, sim, docker]
 
-    defaults:
-      run:
-        shell: bash
-
-    env:
-      OUTPUT_DIR: ${{ runner.temp }}/sim_outputs
+    container:
+      image: python:3.12-slim
+      options: --volume /srv:/srv
 
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Python (via uv)
-        uses: astral-sh/setup-uv@v1
-
       - name: Install dependencies
         run: |
+          pip install uv
           uv sync
 
-      - name: Create output directory
+      - name: Prepare output directory
         run: |
+          OUTPUT_DIR="/srv/sim_outputs/run_${{ github.run_id }}"
           mkdir -p "$OUTPUT_DIR"
+          echo "OUTPUT_DIR=$OUTPUT_DIR" >> $GITHUB_ENV
           echo "Using output dir: $OUTPUT_DIR"
 
       - name: Run simulation
@@ -38,13 +32,12 @@ jobs:
           uv run python -m sim_configs.test_sim \
             -o "$OUTPUT_DIR"
 
-      - name: List output (debug)
+      - name: Verify output
         run: |
-          echo "Contents of output dir:"
           ls -R "$OUTPUT_DIR"
 
       - name: Upload results
         uses: actions/upload-artifact@v4
         with:
-          name: sim-results
+          name: sim-results-${{ github.run_id }}
           path: ${{ env.OUTPUT_DIR }}
