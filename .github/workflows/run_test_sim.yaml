@@ -1,0 +1,50 @@
+
+name: Run Simulation
+
+on:
+  workflow_dispatch:  # manual trigger
+  push:
+    branches: [master]
+
+jobs:
+  run-sim:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      OUTPUT_DIR: ${{ runner.temp }}/sim_outputs
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python (via uv)
+        uses: astral-sh/setup-uv@v1
+
+      - name: Install dependencies
+        run: |
+          uv sync
+
+      - name: Create output directory
+        run: |
+          mkdir -p "$OUTPUT_DIR"
+          echo "Using output dir: $OUTPUT_DIR"
+
+      - name: Run simulation
+        run: |
+          uv run python -m sim_configs.test_sim \
+            -o "$OUTPUT_DIR"
+
+      - name: List output (debug)
+        run: |
+          echo "Contents of output dir:"
+          ls -R "$OUTPUT_DIR"
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-results
+          path: ${{ env.OUTPUT_DIR }}
