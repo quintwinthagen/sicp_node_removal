@@ -2,8 +2,8 @@ import math
 from collections import Counter, defaultdict
 import random
 
-from methods.baselines import degree, hyperdegree
-from ept import build_ept
+from .baselines import degree, hyperdegree
+from .ept import build_ept
 
 def inverse_communities(communities):
     node_to_comm = {}

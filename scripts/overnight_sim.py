@@ -2,68 +2,62 @@
 import sys
 sys.stdout.reconfigure(line_buffering=True)
 
-from dataclasses import dataclass
-from typing import Callable, List, NamedTuple
-
 import csv
 import time
 from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from main import load_graph_and_communities, run_configured_sicp_intermediates
-from removal import remove_nodes
-
-import argparse
-
-
-@dataclass
-class SimParams:
-    datasets: List[str]
-    p_values: List[float]
-    beta: float
-    timesteps: int
-    runs: int
-    rng_seed: int
-    seed_iterations: int
-
-@dataclass
-class Strategy:
-    name: str
-    removal_func: Callable[..., List[str]]
-    need_community: bool = False
-    need_beta: bool = False
+from .main import load_graph_and_communities, run_configured_sicp_intermediates
+from core.removal import (
+    degree_based_removal,
+    avg_hyperedge_size_removal,
+    hyperdegree_based_removal,
+    random_based_removal,
+    ept_bridge_in_strength_removal,
+    ept_total_strength,
+    remove_nodes,
+)
 
 
-def run_sims(parameters: SimParams, strategies: List[Strategy]):
-    
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-o", type=str)
-    args = parser.parse_args()
-    out_dir = Path(args.o)
+def run_sims():
+    DATASETS = ['Music-Rev']
+    P_VALUES = [0.05, 0.10, 0.20]
+    BETA = 0.02
+    T = 25
+    RUNS = 10
+    rng_seed = 175
+    seed_iterations = 1000
 
+    out_dir = Path("overnight_outputs/presentation_sims2")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    def _get_removal_func(strategy: Strategy):
-        if strategy.need_beta and strategy.need_community:
-            return lambda graph, communities, K: strategy.removal_func(graph, communities, parameters.beta, K)
-        if strategy.need_beta and not strategy.need_community:
-            return lambda graph, communities, K: strategy.removal_func(graph, parameters.beta, K)
-        if not strategy.need_beta and strategy.need_community:
-            return lambda graph, communities, K: strategy.removal_func(graph, communities, K)
-        if not strategy.need_beta and not strategy.need_community:
-            return lambda graph, communities, K: strategy.removal_func(graph, K)
+    def _wrap_no_comm(func):
+        return lambda graph, communities, K: func(graph, K)
 
-    STRATEGIES = [(strat.name, _get_removal_func(strat)) for strat in strategies]
+    def _wrap_beta(func):
+        return lambda graph, communities, K: func(graph, BETA, K)
+
+    def _wrap_comm_beta(func):
+        return lambda graph, communities, K: func(graph, communities, BETA, K)
+
+    STRATEGIES = [
+        # ("degree", _wrap_no_comm(degree_based_removal)),
+        # ("hyperdegree", _wrap_no_comm(hyperdegree_based_removal)),
+        # ("random", _wrap_no_comm(random_based_removal)),
+        ("avg_hyperedge_size", _wrap_no_comm(avg_hyperedge_size_removal)),
+        # ("ept_total_strength", _wrap_beta(ept_total_strength)),
+        # ("ept_bridge_in_strength", _wrap_comm_beta(ept_bridge_in_strength_removal)),
+    ]
 
     csv_header = ['dataset', 'p', 'strategy', 'K', 'remaining_nodes', 'timestep', 'mean_infected']
 
     overall_start = time.time()
 
-    for dataset_idx, dataset in enumerate(parameters.datasets, 1):
+    for dataset_idx, dataset in enumerate(DATASETS, 1):
         dataset_start = time.time()
         print("\n" + "="*70)
-        print(f"[{dataset_idx}/{len(parameters.datasets)}] Dataset: {dataset}")
+        print(f"[{dataset_idx}/{len(DATASETS)}] Dataset: {dataset}")
         print("="*70)
 
         print("  Loading graph...")
@@ -79,10 +73,10 @@ def run_sims(parameters: SimParams, strategies: List[Strategy]):
                 writer = csv.DictWriter(f, fieldnames=csv_header)
                 writer.writeheader()
 
-        for p_idx, p in enumerate(parameters.p_values, 1):
+        for p_idx, p in enumerate(P_VALUES, 1):
             p_start = time.time()
             K = int(p * float(N))
-            print(f"\n  [{p_idx}/{len(parameters.p_values)}] p={p:.2f} (K={K} nodes to remove)")
+            print(f"\n  [{p_idx}/{len(P_VALUES)}] p={p:.2f} (K={K} nodes to remove)")
 
             print("    Computing removal strategies...")
             removed_graphs = {}
@@ -114,17 +108,17 @@ def run_sims(parameters: SimParams, strategies: List[Strategy]):
                 try:
                     mean_counts = run_configured_sicp_intermediates(
                         g_removed,
-                        seed_iterations=parameters.seed_iterations,
-                        beta=parameters.beta,
-                        T=parameters.timesteps,
-                        runs=parameters.runs,
-                        rng_seed=parameters.rng_seed,
+                        seed_iterations=seed_iterations,
+                        beta=BETA,
+                        T=T,
+                        runs=RUNS,
+                        rng_seed=rng_seed,
                     )
 
-                    if len(mean_counts) < parameters.timesteps + 1:
-                        mean_counts += [mean_counts[-1]] * (parameters.timesteps + 1 - len(mean_counts))
-                    elif len(mean_counts) > parameters.timesteps + 1:
-                        mean_counts = mean_counts[:parameters.timesteps+1]
+                    if len(mean_counts) < T + 1:
+                        mean_counts += [mean_counts[-1]] * (T + 1 - len(mean_counts))
+                    elif len(mean_counts) > T + 1:
+                        mean_counts = mean_counts[:T+1]
 
                     for t, mean_inf in enumerate(mean_counts):
                         rows.append({
@@ -158,3 +152,7 @@ def run_sims(parameters: SimParams, strategies: List[Strategy]):
     print(f"Total time: {overall_elapsed:.1f}s ({overall_elapsed/60:.1f}m)")
     print(f"Results saved to: {out_dir}")
     print("="*70)
+
+
+if __name__ == "__main__":
+    run_sims()

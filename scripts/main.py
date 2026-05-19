@@ -22,17 +22,17 @@ import time
 
 import numpy as np
 
-from config import L_DATASETS, EL_DATASETS, seed_set_degree
-from data_loader import (
+from core.config import L_DATASETS, EL_DATASETS, seed_set_degree
+from core.data_loader import (
     get_graph_nodes,
     load_labeled_hypergraph,
     load_edge_labeled_hypergraph,
     load_labeled_hypergraph_cd,
     load_edge_labeled_hypergraph_cd,
 )
-from methods.SICP import SICP_set, SICP
+from core.SICP import SICP_set, SICP
 
-from removal import *
+from core.removal import *
 # from removal import (
 #     # avg_hyperedge_size_removal,
 #     filtered_hyperdegree_removal,

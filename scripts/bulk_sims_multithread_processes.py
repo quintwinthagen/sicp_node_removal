@@ -7,7 +7,7 @@ import random
 import statistics
 
 from main import load_graph_and_communities, run_configured_sicp_intermediates
-from removal import (
+from core.removal import (
     count_ic_hedges,
     count_communities_in_hedges_removal,
     degree_based_removal,

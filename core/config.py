@@ -1,4 +1,4 @@
-from methods.baselines import degree, hyperdegree
+from .baselines import degree, hyperdegree
 
 
 L_DATASETS = [

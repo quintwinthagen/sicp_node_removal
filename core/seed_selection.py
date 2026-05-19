@@ -16,8 +16,8 @@ from data_loader import (
     load_labeled_hypergraph_cd,
     load_edge_labeled_hypergraph_cd,
 )
-from methods.baselines import degree, hyperdegree
-from methods.SICP import SICP_set
+from baselines import degree, hyperdegree
+from SICP import SICP_set
 
 def dataset_kind(dataset):
     if dataset in L_DATASETS:
