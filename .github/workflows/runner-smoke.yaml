@@ -1,0 +1,18 @@
+name: Self-hosted runner smoke test
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: [self-hosted, linux, x64, sim, docker]
+    container: python:3.12-slim
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Python
+        run: python --version
+      - name: CPU info
+        run: |
+          python - <<'PY'
+          import os
+          print("CPUs:", os.cpu_count())
+          PY
