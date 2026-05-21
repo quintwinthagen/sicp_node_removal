@@ -1,7 +1,7 @@
 from core.removal import ept_total_strength
 from scripts.sim_runner import *
 
-parameters = SimParams(
+parameters = SimParameters(
     datasets=['Geometry'],
     p_values=[0.2],
     beta=0.02,

@@ -5,7 +5,7 @@ from scripts.sim_runner import *
 # Bars Rev
 # intercommunity hyperedge count
 
-parameters = SimParams(
+parameters = SimParameters(
     datasets=['Music-Rev', 'Bars-Rev'],
     p_values=[0.05, 0.1, 0.2],
     beta=0.02,

@@ -16,9 +16,8 @@ from core.removal import remove_nodes
 
 import argparse
 
-
 @dataclass
-class SimParams:
+class SimParameters:
     datasets: List[str]
     p_values: List[float]
     beta: float
@@ -35,7 +34,7 @@ class Strategy:
     need_beta: bool = False
 
 
-def run_sims(parameters: SimParams, strategies: List[Strategy]):
+def run_sims(parameters: SimParameters, strategies: List[Strategy]):
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", type=str)
