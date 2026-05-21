@@ -67,15 +67,15 @@ def load_graph_and_communities(dataset, tau, verbose=True):
 
     if kind == "node":
         if tau is None:
-            graph, clusters = load_labeled_hypergraph(key, source=True)
+            graph, clusters = load_labeled_hypergraph(key, source=False)
         else:
-            graph, cd = load_labeled_hypergraph_cd(key, taus=(tau,), source=True, verbose=verbose)
+            graph, cd = load_labeled_hypergraph_cd(key, taus=(tau,), source=False, verbose=verbose)
             clusters = cd.get(tau, {})
     else:
         if tau is None:
-            graph, clusters = load_edge_labeled_hypergraph(key, source=True)
+            graph, clusters = load_edge_labeled_hypergraph(key, source=False)
         else:
-            graph, cd = load_edge_labeled_hypergraph_cd(key, taus=(tau,), source=True, verbose=verbose)
+            graph, cd = load_edge_labeled_hypergraph_cd(key, taus=(tau,), source=False, verbose=verbose)
             clusters = cd.get(tau, {})
 
     if verbose:

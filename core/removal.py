@@ -1,6 +1,8 @@
 import math
 from collections import Counter, defaultdict
+from collections.abc import Mapping
 import random
+from typing import Callable, List
 
 from .baselines import degree, hyperdegree
 from .ept import build_ept
@@ -19,6 +21,42 @@ def inverse_graph(graph):
             node_to_hedge[node].append(hedge)
     return node_to_hedge
 
+
+## remove_nodes_greedily(count_ic_edges, (graph, communities), 14, 1) : returns graph with nodes removed greedily
+
+def remove_nodes_greedily(func: Callable[..., List[str]], args, K, batch):
+    full_iterations = K // batch
+    remaining_nodes = K % batch
+
+    g = args[0]
+    c = None
+
+    # Detect a communities mapping robustly (dict, defaultdict, etc.)
+    if len(args) > 1 and isinstance(args[1], Mapping):
+        c = args[1]
+    
+
+    Ks = full_iterations * [batch]
+    if remaining_nodes:
+        Ks.append(remaining_nodes)
+
+    for i in range(full_iterations + (1 if remaining_nodes > 0 else 0)):
+        removal_amount = Ks[i]
+        if c is not None: to_remove = func(g, c, *args[2:], removal_amount)
+        else: to_remove = func(g, *args[1:], removal_amount)
+        g = remove_nodes(g, to_remove)
+
+        # Keep updating communities as long as a mapping was provided
+        if c is not None:
+            new_c = {}
+            for comm_label, nodes in c.items():
+                pruned_nodes = set(nodes)
+                for n in to_remove:
+                    pruned_nodes.discard(n)
+                new_c[comm_label] = pruned_nodes
+            c = new_c
+
+    return g
 
 def _ept_bridge_strengths(graph, communities, beta):
     """
