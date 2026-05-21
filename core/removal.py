@@ -23,7 +23,6 @@ def inverse_graph(graph):
 
 
 ## remove_nodes_greedily(count_ic_edges, (graph, communities), 14, 1) : returns graph with nodes removed greedily
-
 def remove_nodes_greedily(func: Callable[..., List[str]], args, K, batch):
     full_iterations = K // batch
     remaining_nodes = K % batch
@@ -321,7 +320,7 @@ def count_ic_hedges(graph, communities, K):
     for ic_hedge in inter_comm_hedges:
         node_to_inter_comm_occurences.update(graph[ic_hedge])
 
-    return {el[0] for el in node_to_inter_comm_occurences.most_common(K)} #can cause differrences: equal-count ordering depends in insertion order
+    return [el[0] for el in node_to_inter_comm_occurences.most_common(K)]#can cause differrences: equal-count ordering depends in insertion order
 
 def responsibility_weighted_hdeg_removal(graph, communities, K):
 
@@ -569,3 +568,33 @@ def remove_nodes(graph, node_ids):
             removed_graph[edge_id] = s
     
     return removed_graph
+
+
+def make_greedy_removal(removal_func, batch=1):
+    def wrapped(graph, *args, K):
+        if K <= 0:
+            return []
+
+        comm = args[0] if args and isinstance(args[0], Mapping) else None
+        rest = args[1:] if comm is not None else args
+
+        ks = [batch] * (K // batch) + ([K % batch] if K % batch else [])
+
+        removed = []
+
+        for k in ks:
+            to_rm = removal_func(graph, *( (comm,) if comm is not None else () ), *rest, k)
+            if not to_rm:
+                break
+
+            removed += to_rm
+            graph = remove_nodes(graph, to_rm)
+
+            if comm is not None:
+                rm = set(to_rm)
+                comm = {c: nodes - rm for c, nodes in comm.items()}
+
+        return removed[:K]
+
+    return wrapped
+

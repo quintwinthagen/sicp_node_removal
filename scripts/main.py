@@ -61,21 +61,21 @@ def resolve_dataset_key(dataset):
     return dataset
 
 
-def load_graph_and_communities(dataset, tau, verbose=True):
+def load_graph_and_communities(dataset, tau, verbose=True, source=True):
     kind = dataset_kind(dataset)
     key = resolve_dataset_key(dataset)
 
     if kind == "node":
         if tau is None:
-            graph, clusters = load_labeled_hypergraph(key, source=False)
+            graph, clusters = load_labeled_hypergraph(key, source=source)
         else:
-            graph, cd = load_labeled_hypergraph_cd(key, taus=(tau,), source=False, verbose=verbose)
+            graph, cd = load_labeled_hypergraph_cd(key, taus=(tau,), source=source, verbose=verbose)
             clusters = cd.get(tau, {})
     else:
         if tau is None:
-            graph, clusters = load_edge_labeled_hypergraph(key, source=False)
+            graph, clusters = load_edge_labeled_hypergraph(key, source=source)
         else:
-            graph, cd = load_edge_labeled_hypergraph_cd(key, taus=(tau,), source=False, verbose=verbose)
+            graph, cd = load_edge_labeled_hypergraph_cd(key, taus=(tau,), source=source, verbose=verbose)
             clusters = cd.get(tau, {})
 
     if verbose:

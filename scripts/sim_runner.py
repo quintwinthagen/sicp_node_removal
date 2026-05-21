@@ -2,6 +2,8 @@
 import sys
 sys.stdout.reconfigure(line_buffering=True)
 
+import traceback
+
 from dataclasses import dataclass
 from typing import Callable, List, NamedTuple
 
@@ -45,13 +47,13 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
 
     def _get_removal_func(strategy: Strategy):
         if strategy.need_beta and strategy.need_community:
-            return lambda graph, communities, K: strategy.removal_func(graph, communities, parameters.beta, K)
+            return lambda graph, communities, K: strategy.removal_func(graph, communities, parameters.beta, K=K)
         if strategy.need_beta and not strategy.need_community:
-            return lambda graph, communities, K: strategy.removal_func(graph, parameters.beta, K)
+            return lambda graph, communities, K: strategy.removal_func(graph, parameters.beta, K=K)
         if not strategy.need_beta and strategy.need_community:
-            return lambda graph, communities, K: strategy.removal_func(graph, communities, K)
+            return lambda graph, communities, K: strategy.removal_func(graph, communities, K=K)
         if not strategy.need_beta and not strategy.need_community:
-            return lambda graph, communities, K: strategy.removal_func(graph, K)
+            return lambda graph, communities, K: strategy.removal_func(graph, K=K)
 
     STRATEGIES = [(strat.name, _get_removal_func(strat)) for strat in strategies]
 
@@ -93,6 +95,7 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
                     removed_graphs[strat_name] = remove_nodes(temp_graph, nodes_to_remove)
                     print(f"      OK {strat_name}")
                 except Exception as e:
+                    print(traceback.format_exc())
                     print(f"      FAIL {strat_name}: {type(e).__name__}")
                     removed_graphs[strat_name] = None
 
