@@ -35,8 +35,14 @@ class Strategy:
     need_community: bool = False
     need_beta: bool = False
 
+EMPTY_STRATEGY = Strategy(
+    name= "EMPTY_STRATEGY",
+    removal_func=lambda graph, K : [],
+    need_community=False,
+    need_beta=False,
+)
 
-def run_sims(parameters: SimParameters, strategies: List[Strategy]):
+def run_sims(parameters: SimParameters, strategies: List[Strategy]): 
     
     parser = argparse.ArgumentParser()
     parser.add_argument("-o", type=str)

@@ -1,10 +1,10 @@
-from core.removal import ept_total_strength
+from core.removal import random_based_removal, degree_based_removal
 from scripts.sim_runner import *
 
 parameters = SimParameters(
-    datasets=['Geometry'],
-    p_values=[0.2],
-    beta=0.02,
+    datasets=['Algebra'],
+    p_values=[0.05, 0.1, 0.2],
+    beta=0.04,
     timesteps=25,
     runs=10,
     rng_seed=175,
@@ -12,7 +12,9 @@ parameters = SimParameters(
 )
 
 strategies = [
-    Strategy("ept_total_strength", ept_total_strength, need_beta=True, need_community=False)
+    EMPTY_STRATEGY,
+    Strategy("random", random_based_removal, need_beta=False, need_community=False),
+    Strategy("degree", degree_based_removal, need_beta=False, need_community=False)
 ]
 
 if __name__ == "__main__":
