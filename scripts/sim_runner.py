@@ -99,7 +99,7 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
                 try:
                     nodes_to_remove = strat_func(temp_graph, communities, K)
                     removed_graphs[strat_name] = remove_nodes(temp_graph, nodes_to_remove)
-                    print(f"      OK {strat_name}")
+                    print(f"      OK {strat_name}, removed {len(nodes_to_remove)} nodes ({len(removed_graphs[strat_name].nodes) - len(set.union(*removed_graphs[strat_name].hyperedges.values()))} disconnected)")
                 except Exception as e:
                     print(traceback.format_exc())
                     print(f"      FAIL {strat_name}: {type(e).__name__}")

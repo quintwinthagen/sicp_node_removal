@@ -9,7 +9,7 @@ from collections import defaultdict
 from core.data_loader import Hypergraph
 
 def compute_hyperdegree(graph: Hypergraph):
-    """graph: dict[hedge_id -> iterable(nodes)] -> dict[node -> hyperdegree]"""
+    """returns dict[node -> hyperdegree]"""
     hdeg = defaultdict(int)
 
     for _, nodes in graph.hyperedges.items():
