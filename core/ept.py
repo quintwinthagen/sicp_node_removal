@@ -12,7 +12,7 @@ def compute_hyperdegree(graph: Hypergraph):
     """graph: dict[hedge_id -> iterable(nodes)] -> dict[node -> hyperdegree]"""
     hdeg = defaultdict(int)
 
-    for _, nodes in graph.edges.items():
+    for _, nodes in graph.hyperedges.items():
         for u in nodes:
             hdeg[u] += 1
     return dict(hdeg)
