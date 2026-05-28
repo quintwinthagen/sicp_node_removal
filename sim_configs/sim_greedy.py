@@ -1,4 +1,4 @@
-from core.removal import make_greedy_removal, degree_based_removal, ept_total_strength, ept_bridge_in_strength_removal
+from core.removal import make_adaptive_removal, degree_based_removal, ept_total_strength, ept_bridge_in_strength_removal
 from scripts.sim_runner import *
 
 # Music Rev
@@ -17,13 +17,13 @@ parameters = SimParameters(
 
 strategies = [
     Strategy("degree", degree_based_removal, need_beta=False, need_community=False),
-    Strategy("degree_greedy", make_greedy_removal(degree_based_removal, batch=1), need_beta=False, need_community=False),
+    Strategy("degree_greedy", make_adaptive_removal(degree_based_removal, batch=1), need_beta=False, need_community=False),
 
     Strategy("ept_total_strength", ept_total_strength, need_beta=True, need_community=False),
-    Strategy("ept_total_strength_greedy", make_greedy_removal(ept_total_strength, batch=1), need_beta=True, need_community=False),
+    Strategy("ept_total_strength_greedy", make_adaptive_removal(ept_total_strength, batch=1), need_beta=True, need_community=False),
 
     Strategy("ept_bridge_in", ept_bridge_in_strength_removal, need_beta=True, need_community=True),
-    Strategy("ept_bridge_in_greedy", make_greedy_removal(ept_bridge_in_strength_removal, batch=1), need_beta=True, need_community=True),
+    Strategy("ept_bridge_in_greedy", make_adaptive_removal(ept_bridge_in_strength_removal, batch=1), need_beta=True, need_community=True),
 ]
 
 if __name__ == "__main__":

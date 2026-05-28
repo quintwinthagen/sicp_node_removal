@@ -20,7 +20,7 @@ def SICP(G: Hypergraph, S, beta, T, return_series=False):
 
     # node -> list of incident edges (uniform choice over these)
     node_to_edges: dict[str, list[str]] = defaultdict(list)
-    for eid, nodes in G.edges.items():
+    for eid, nodes in G.hyperedges.items():
         for u in nodes:
             node_to_edges[u].append(eid)
 
@@ -34,7 +34,7 @@ def SICP(G: Hypergraph, S, beta, T, return_series=False):
                 # v may be isolated, and can thus not spread, but remains infected
                 continue
             e = random.choice(edges)
-            for u in sorted(G.edges[e], key=str):
+            for u in sorted(G.hyperedges[e], key=str):
                 if u not in infected and random.random() < beta:
                     new_infected.add(u)
 
@@ -68,7 +68,7 @@ def SICP_set(G: Hypergraph, S, beta, T) -> set[str]:
 
     node_to_edges: dict[str, list[str]] = defaultdict(list)
 
-    for eid, nodes in G.edges.items():
+    for eid, nodes in G.hyperedges.items():
         # for u in sorted(nodes, key=str):
         for u in nodes:
             # node_to_edges[u].sort();
@@ -85,7 +85,7 @@ def SICP_set(G: Hypergraph, S, beta, T) -> set[str]:
                 # v may be isolated, in that case it cannot spread in this step.
                 continue
             e = random.choice(edges)
-            for u in sorted(G.edges[e], key=str):
+            for u in sorted(G.hyperedges[e], key=str):
                 if u not in infected and random.random() < beta:
                     new_infected.add(u)
 

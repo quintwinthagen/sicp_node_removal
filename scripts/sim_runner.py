@@ -5,13 +5,11 @@ sys.stdout.reconfigure(line_buffering=True)
 import traceback
 
 from dataclasses import dataclass
-from typing import Callable, List, NamedTuple
+from typing import Callable, List
 
 import csv
 import time
 from pathlib import Path
-import matplotlib.pyplot as plt
-import numpy as np
 
 from .main import load_graph_and_communities, run_configured_sicp_intermediates
 from core.removal import remove_nodes
@@ -36,7 +34,7 @@ class Strategy:
     need_beta: bool = False
 
 EMPTY_STRATEGY = Strategy(
-    name= "EMPTY_STRATEGY",
+    name="EMPTY_STRATEGY",
     removal_func=lambda graph, K : [],
     need_community=False,
     need_beta=False,
@@ -75,9 +73,11 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
 
         print("  Loading graph...")
         temp_graph, communities = load_graph_and_communities(dataset, tau=2, verbose=False)
-        all_nodes = set.union(*temp_graph.values())
+        all_nodes = temp_graph.nodes
         N = len(all_nodes)
-        print(f"  OK Loaded: {len(temp_graph)} hyperedges, {N} nodes")
+
+        connected_nodes = len(set.union(*temp_graph.hyperedges.values())) if temp_graph.hyperedges else 0
+        print(f"  OK Loaded: {len(temp_graph.hyperedges)} hyperedges, {N} nodes, ({N - connected_nodes} disconnected)")
 
         dataset_out_file = out_dir / f"{dataset}_comprehensive_results.csv"
 
@@ -117,7 +117,7 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
                     continue
 
                 g_removed = removed_graphs[strat_name]
-                remaining_nodes = len(set.union(*g_removed.values())) if g_removed else 0
+                remaining_nodes = len(g_removed.nodes)
 
                 try:
                     mean_counts = run_configured_sicp_intermediates(

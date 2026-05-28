@@ -3,10 +3,11 @@ from dataclasses import dataclass, field
 import os
 
 
+# solves the problem of disconnected nodes
 @dataclass
 class Hypergraph:
     nodes: set[str] = field(default_factory=set)
-    edges: dict[str, set[str]] = field(default_factory=dict)
+    hyperedges: dict[str, set[str]] = field(default_factory=dict)
 
 
 def load_hypergraph_from_txt(dataset):
