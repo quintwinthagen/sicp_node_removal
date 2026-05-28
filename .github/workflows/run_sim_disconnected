@@ -1,4 +1,4 @@
-name: Run Simulation Greedy Large
+name: Run Simulation Disconnected
 
 on:
   workflow_dispatch:
@@ -29,7 +29,7 @@ jobs:
 
       - name: Run simulation
         run: |
-          uv run python -m sim_configs.sim_greedy_large \
+          uv run python -m sim_configs.sim_disconnected \
             -o "$OUTPUT_DIR"
 
       - name: Verify output
