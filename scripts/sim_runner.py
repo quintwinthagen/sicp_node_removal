@@ -78,6 +78,7 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
 
         connected_nodes = len(set.union(*temp_graph.hyperedges.values())) if temp_graph.hyperedges else 0
         print(f"  OK Loaded: {len(temp_graph.hyperedges)} hyperedges, {N} nodes, ({N - connected_nodes} disconnected)")
+        print(f"Running with( BETA: {parameters.beta}, timesteps: {parameters.timesteps}, runs: {parameters.runs}, rng_seed: {parameters.rng_seed}, seed_iterations: {parameters.seed_iterations} )")
 
         dataset_out_file = out_dir / f"{dataset}_comprehensive_results.csv"
 

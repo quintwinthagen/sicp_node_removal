@@ -4,7 +4,6 @@ import random
 
 from core.data_loader import Hypergraph
 
-from .baselines import degree, hyperdegree
 from .ept import build_ept
 
 def inverse_communities(communities):
@@ -106,16 +105,21 @@ def _ept_bridge_strengths(graph, communities, beta):
 
 def ept_bridge_out_strength_removal(graph: Hypergraph, communities, beta, K):
     bridge_out, _, _ = _ept_bridge_strengths(graph, communities, beta)
-    return sorted(bridge_out.keys(),
-                  key=lambda u: (bridge_out[u], str(u)),
-                  reverse=True)[:K]
+    return sorted(
+        graph.nodes,
+        key=lambda u: (bridge_out[u], str(u)),
+        reverse=True
+    )[:K]
 
 
 def ept_bridge_in_strength_removal(graph: Hypergraph, communities, beta, K):
     _, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
-    return sorted(bridge_in.keys(),
-                  key=lambda v: (bridge_in[v], str(v)),
-                  reverse=True)[:K]
+    return sorted(
+        graph.nodes,
+        key=lambda v: (bridge_in[v], str(v)),
+        reverse=True
+    )[:K]
+
 
 def ept_bridge_in_and_out_total(graph, communities, beta, K):
     ept = build_ept(graph, beta)
@@ -129,16 +133,23 @@ def ept_bridge_in_and_out_total(graph, communities, beta, K):
             out_s[u] += w
             in_s[v]  += w
 
-    score = {u: out_s[u] + in_s[u] + 2 * bridge_in[u] for u in set(out_s) | set(in_s)}
-    return sorted(score, key=score.get, reverse=True)[:K]
+    score = {u: out_s[u] + in_s[u] + 2 * bridge_in[u] for u in graph.nodes}
+    return sorted(
+        graph.nodes,
+        key=lambda u: (score[u], str(u)),
+        reverse=True
+    )[:K]
 
 
 def ept_boundary_strength_removal(graph: Hypergraph, communities, beta, K):
     bridge_out, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
-    nodes = set(bridge_out) | set(bridge_in)
 
-    score = {x: bridge_out[x] + bridge_in[x] for x in nodes}
-    return sorted(nodes, key=lambda x: (score[x], str(x)), reverse=True)[:K]
+    score = {x: bridge_out[x] + bridge_in[x] for x in graph.nodes}
+    return sorted(
+        graph.nodes,
+        key=lambda x: (score[x], str(x)),
+        reverse=True
+    )[:K]
 
 
 
@@ -146,18 +157,21 @@ def ept_bridge_out_fraction_removal(graph: Hypergraph, communities, beta, K, eps
     bridge_out, _, out_strength = _ept_bridge_strengths(graph, communities, beta)
 
     score = {}
-    for u in out_strength:
+    for u in graph.nodes:
         score[u] = bridge_out[u] / (out_strength[u] + eps)
 
-    return sorted(score.keys(), key=lambda u: (score[u], str(u)), reverse=True)[:K]
+    return sorted(graph.nodes, key=lambda u: (score[u], str(u)), reverse=True)[:K]
 
 
 def ept_bridge_broker_removal(graph: Hypergraph, communities, beta, K, eps=1e-12):
     bridge_out, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
-    nodes = set(bridge_out) | set(bridge_in)
 
-    score = {x: (bridge_in[x] + eps) * (bridge_out[x] + eps) for x in nodes}
-    return sorted(nodes, key=lambda x: (score[x], str(x)), reverse=True)[:K]
+    score = {x: (bridge_in[x] + eps) * (bridge_out[x] + eps) for x in graph.nodes}
+    return sorted(
+        graph.nodes,
+        key=lambda x: (score[x], str(x)),
+        reverse=True
+    )[:K]
 
 
 
@@ -181,39 +195,49 @@ def ept_boundary_ratio_removal(graph: Hypergraph, communities, beta, K, eps=1e-1
             else:
                 bridge_out[u] += w_uv
 
-    nodes = set(bridge_out) | set(within_out)
-    score = {u: bridge_out[u] / (within_out[u] + eps) for u in nodes}
+    score = {u: bridge_out[u] / (within_out[u] + eps) for u in graph.nodes}
 
-    return sorted(nodes, key=lambda u: (score[u], str(u)), reverse=True)[:K]
-
+    return sorted(
+        graph.nodes,
+        key=lambda u: (score[u], str(u)),
+        reverse=True
+    )[:K]
 
 def ept_broker_strength(graph, beta, K, eps=1e-12):
     ept = build_ept(graph, beta)
 
     out_s = defaultdict(float)
     in_s  = defaultdict(float)
-    nodes = set()
 
     for u, nbrs in ept.items():
-        nodes.add(u)
         for v, w in nbrs.items():
-            nodes.add(v)
             out_s[u] += w
             in_s[v]  += w
 
-    score = {u: (in_s[u] + eps) * (out_s[u] + eps) for u in nodes}
-    return sorted(score, key=score.get, reverse=True)[:K]
+
+    score = {u: (in_s[u] + eps) * (out_s[u] + eps) for u in graph.nodes}
+
+    return sorted(
+        graph.nodes,
+        key=lambda u: (score[u], str(u)),
+        reverse=True
+    )[:K]
+
 
 
 def ept_pagerank_removal(graph: Hypergraph, beta, K, d=0.85, iters=50):
     ept = build_ept(graph, beta)
 
-    # Collect all nodes
+    # Collect EPT-visible nodes
     nodes = set(ept.keys())
     for u, nbrs in ept.items():
         nodes.update(nbrs.keys())
     nodes = list(nodes)
-    idx = {u:i for i,u in enumerate(nodes)}
+
+    if not nodes:
+        return sorted(graph.nodes, key=str, reverse=True)[:K]
+
+    idx = {u: i for i, u in enumerate(nodes)}
     n = len(nodes)
 
     # Normalize outgoing weights to probabilities
@@ -228,7 +252,6 @@ def ept_pagerank_removal(graph: Hypergraph, beta, K, d=0.85, iters=50):
     for _ in range(iters):
         new = [base] * n
 
-        # Distribute rank along normalized EPT edges
         for u, nbrs in ept.items():
             su = out_sum[u]
             if su <= 0:
@@ -239,8 +262,16 @@ def ept_pagerank_removal(graph: Hypergraph, beta, K, d=0.85, iters=50):
 
         pr = new
 
-    score = {u: pr[idx[u]] for u in nodes}
-    return sorted(score, key=score.get, reverse=True)[:K]
+    score = {u: 0.0 for u in graph.nodes}
+    for u in nodes:
+        score[u] = pr[idx[u]]
+
+    return sorted(
+        graph.nodes,
+        key=lambda u: (score[u], str(u)),
+        reverse=True
+    )[:K]
+
 
 
 def ept_total_strength(graph, beta, K):
@@ -254,14 +285,21 @@ def ept_total_strength(graph, beta, K):
             out_s[u] += w
             in_s[v]  += w
 
-    score = {u: out_s[u] + in_s[u] for u in set(out_s) | set(in_s)}
-    return sorted(score, key=score.get, reverse=True)[:K]
+    score = {u: out_s[u] + in_s[u] for u in graph.nodes}
+    return sorted(
+        graph.nodes,
+        key=lambda u: (score[u], str(u)),
+        reverse=True
+    )[:K]
 
 
 def ept_out_strength(graph, beta, K):
     ept = build_ept(graph, beta)
 
-    score = {v : (sum(weights.values())) for v, weights in ept.items()}
+    score = {
+        u: sum(ept[u].values()) if u in ept else 0.0
+        for u in graph.nodes
+    }
     return sorted(
         score.keys(),
         key=lambda n: (score[n], str(n)),
@@ -319,16 +357,17 @@ def count_communities_in_hedges_removal(graph: Hypergraph, communities, K):
 #     return sorted(node_to_ic_hdeg_fraction.keys(), key=lambda n: node_to_ic_hdeg_fraction[n], reverse=True)[:K]
 
 
+
 def count_ic_hedges(graph: Hypergraph, communities, K):
     """Select nodes that appear most often in inter-community hyperedges."""
     inv_comm = inverse_communities(communities)
     inter_comm_hedges = set()
+
     for hedge, nodes in graph.hyperedges.items():
         unique_communities = set()
         unique_communities.update([inv_comm.get(node, "UNK") for node in nodes])
         if "UNK" in unique_communities:
             continue
-            # raise ValueError("node has no recorded community")
         if len(unique_communities) > 1:
             inter_comm_hedges.add(hedge)
 
@@ -336,7 +375,17 @@ def count_ic_hedges(graph: Hypergraph, communities, K):
     for ic_hedge in inter_comm_hedges:
         node_to_inter_comm_occurences.update(graph.hyperedges[ic_hedge])
 
-    return [el[0] for el in node_to_inter_comm_occurences.most_common(K)]#can cause differrences: equal-count ordering depends in insertion order
+    score = {
+        node: node_to_inter_comm_occurences[node]
+        for node in graph.nodes
+    }
+
+    return sorted(
+        graph.nodes,
+        key=lambda node: (score[node], str(node)),
+        reverse=True
+    )[:K]
+
 
 def responsibility_weighted_hdeg_removal(graph: Hypergraph, communities, K):
     inv_comm = inverse_communities(communities)
@@ -365,8 +414,11 @@ def responsibility_weighted_hdeg_removal(graph: Hypergraph, communities, K):
     for node, hedges in inv_graph.items():
         resp[node] += len(hedges)
 
-
-    return sorted(resp, key=resp.get, reverse=True)[:K]
+    return sorted(
+        graph.nodes,
+        key=lambda node: (resp[node], str(node)),
+        reverse=True
+    )[:K]
     
 # def filtered_hyperdegree_removal(graph: Hypergraph, communities, K):
 #     """
@@ -422,11 +474,34 @@ def avg_hyperedge_size_removal(graph: Hypergraph, K: int):
 
 def hyperdegree_based_removal(graph: Hypergraph, K):
     """Select nodes with highest hyperdegree (number of incident hyperedges)."""
-    return hyperdegree(graph.hyperedges, K) # The existing implementation of degree and hyperdegree uses defaultdict, so disconnected nodes are already accounted for.
+    node_hyperdegrees = {node: 0 for node in graph.nodes}
+
+    for hedge_nodes in graph.hyperedges.values():
+        for node in hedge_nodes:
+            node_hyperdegrees[node] += 1
+
+    return sorted(
+        graph.nodes,
+        key=lambda n: (node_hyperdegrees[n], str(n)),
+        reverse=True
+    )[:K]
+
 
 def degree_based_removal(graph: Hypergraph, K):
     """Select nodes with highest projected pairwise degree."""
-    return degree(graph.hyperedges, K) # The existing implementation of degree and hyperdegree uses defaultdict, so disconnected nodes are already accounted for.
+    neighbors = {node: set() for node in graph.nodes}
+
+    for hedge_nodes in graph.hyperedges.values():
+        for node in hedge_nodes:
+            neighbors[node].update(hedge_nodes - {node})
+
+    node_degrees = {node: len(neighbors[node]) for node in graph.nodes}
+
+    return sorted(
+        graph.nodes,
+        key=lambda n: (node_degrees[n], str(n)),
+        reverse=True
+    )[:K]
 
 def random_based_removal(graph:Hypergraph, K):
     """Select K nodes uniformly at random from all nodes."""
