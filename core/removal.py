@@ -14,12 +14,21 @@ def inverse_communities(communities):
             node_to_comm[node] = label
     return node_to_comm
 
+## dict[hedge id --> {node ids}]
 def inverse_graph(graph):
     node_to_hedge = defaultdict(list)
     for hedge, nodes in graph.items():
         for node in nodes:
             node_to_hedge[node].append(hedge)
     return node_to_hedge
+
+## dict[node id --> {hedge ids}]
+def re_inverse_graph(inversed_graph):
+    hedge_to_nodes = defaultdict(list)
+    for node, hedges in inversed_graph.items():
+        for hedge in hedges:
+            hedge_to_nodes[hedge].append(node)
+    return hedge_to_nodes
 
 # Use make_greedy_removal
 ## remove_nodes_greedily(count_ic_edges, (graph, communities), 14, 1) : returns graph with nodes removed greedily
@@ -559,15 +568,17 @@ def random_based_removal(graph, K):
     all_nodes = list(set.union(*graph.values()))
     return random.sample(all_nodes, K)
 
+
+
 def remove_nodes(graph, node_ids):
     removed_graph = {}
     node_ids = {str(node_id) for node_id in node_ids}
     for edge_id, nodes in graph.items():
         s = {node for node in nodes if str(node) not in node_ids}
-        if s and len(s) > 1:
+        if s and len(s) > 1: # 1-degree 
             removed_graph[edge_id] = s
-    
     return removed_graph
+
 
 def remove_nodes_old(graph, node_ids):
     removed_graph = {}
