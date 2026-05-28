@@ -1,8 +1,13 @@
 from collections import defaultdict
+from dataclasses import dataclass, field
 import os
 
-def get_graph_nodes(graph):
-    return set.union(*graph.values())
+
+@dataclass
+class Hypergraph:
+    nodes: set[str] = field(default_factory=set)
+    edges: dict[str, set[str]] = field(default_factory=dict)
+
 
 def load_hypergraph_from_txt(dataset):
     """

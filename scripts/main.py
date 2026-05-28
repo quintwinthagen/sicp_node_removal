@@ -24,7 +24,7 @@ import numpy as np
 
 from core.config import L_DATASETS, EL_DATASETS, seed_set_degree
 from core.data_loader import (
-    get_graph_nodes,
+    Hypergraph,
     load_labeled_hypergraph,
     load_edge_labeled_hypergraph,
     load_labeled_hypergraph_cd,
@@ -61,7 +61,7 @@ def resolve_dataset_key(dataset):
     return dataset
 
 
-def load_graph_and_communities(dataset, tau, verbose=True, source=True):
+def load_graph_and_communities_old_structure(dataset, tau, verbose=True, source=True):
     kind = dataset_kind(dataset)
     key = resolve_dataset_key(dataset)
 
@@ -85,6 +85,15 @@ def load_graph_and_communities(dataset, tau, verbose=True, source=True):
             print(f"  communities sizes: min={min(comm_sizes)}, max={max(comm_sizes)}, avg={statistics.mean(comm_sizes):.3f}")
     return graph, clusters
 
+
+## returns dict with: graph["edges"]: dict[int, set[str]] and graph["nodes"]: set[str]
+
+def load_graph_and_communities(dataset, tau, verbose=True, source=True) -> tuple[Hypergraph, dict]:
+    graph_o, comm_o = load_graph_and_communities_old_structure(dataset, tau, verbose=verbose, source=source)
+    nodes = set.union(*graph_o.values())
+    hg = Hypergraph(nodes, graph_o)
+
+    return hg, comm_o
 
 def main():
 
@@ -240,14 +249,14 @@ def node_removal():
         print(f"time checkpoint { (a := a+1)}: {time.asctime()}")   
 
 def run_configured_sicp(
-    graph,
+    graph: Hypergraph,
     seed_iterations,
     beta=0.3,
     T=25,
     runs=10,
     rng_seed=175,
 ):
-    node_ids = set.union(*graph.values())
+    node_ids = graph.nodes
     prevalences_per_timestep = defaultdict(set)
     results_per_seed = {}
     cnt = 0
@@ -283,14 +292,14 @@ def run_configured_sicp(
 
 
 def run_configured_sicp_intermediates(
-    graph,
+    graph: Hypergraph,
     seed_iterations,
     beta=0.3,
     T=25,
     runs=10,
     rng_seed=175,
 ):
-    node_ids = set.union(*graph.values())
+    node_ids = graph.nodes
     prevalences_per_timestep = [[] for _ in range(T + 1)]
     cnt = 0
     for single_seed in node_ids:

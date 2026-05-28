@@ -1,21 +1,26 @@
 from collections import defaultdict
 import random
 
-def SICP(G, S, beta, T, return_series=False):
+from core.data_loader import Hypergraph
+
+def SICP(G: Hypergraph, S, beta, T, return_series=False):
     """
     SICP on a hypergraph.
-    - G: dict {edge_id: iterable_of_nodes}
+    - G: Hypergraph
     - S: iterable of seed nodes
     - beta: infection probability 
     - T: number of timesteps
     - return_series: if True, return list of infected-node sets per timestep (len T+1); else final set
     """
+    invalid = set(S) - G.nodes
+    if invalid:
+        raise ValueError(f"Seed nodes not in hypergraph: {invalid}")
     infected = set(S)
-    series = [set(infected)]
+    series = [set(infected)] 
 
     # node -> list of incident edges (uniform choice over these)
-    node_to_edges = defaultdict(list)
-    for eid, nodes in G.items():
+    node_to_edges: dict[str, list[str]] = defaultdict(list)
+    for eid, nodes in G.edges.items():
         for u in nodes:
             node_to_edges[u].append(eid)
 
@@ -26,9 +31,10 @@ def SICP(G, S, beta, T, return_series=False):
         for v in cur:
             edges = node_to_edges.get(v)
             if not edges:
+                # v may be isolated, and can thus not spread, but remains infected
                 continue
             e = random.choice(edges)
-            for u in sorted(G[e], key=str):
+            for u in sorted(G.edges[e], key=str):
                 if u not in infected and random.random() < beta:
                     new_infected.add(u)
 
@@ -44,10 +50,10 @@ def SICP(G, S, beta, T, return_series=False):
 # MIE needs the series
 # Greedy needs len(infected)
 
-def SICP_set(G, S, beta, T):
+def SICP_set(G: Hypergraph, S, beta, T) -> set[str]:
     """
     SICP on a hypergraph.
-    - G: dict {edge_id: iterable_of_nodes}
+    - G: Hypergraph dataclass
     - S: iterable of seed nodes
     - beta: infection probability 
     - T: number of timesteps
@@ -55,11 +61,14 @@ def SICP_set(G, S, beta, T):
     from collections import defaultdict
     import random
 
-
+    invalid = set(S) - G.nodes
+    if invalid:
+        raise ValueError(f"Seed nodes not in hypergraph: {invalid}")
     infected = set(S)
 
-    node_to_edges = defaultdict(list)
-    for eid, nodes in G.items():
+    node_to_edges: dict[str, list[str]] = defaultdict(list)
+
+    for eid, nodes in G.edges.items():
         # for u in sorted(nodes, key=str):
         for u in nodes:
             # node_to_edges[u].sort();
@@ -73,9 +82,10 @@ def SICP_set(G, S, beta, T):
         for v in cur:
             edges = node_to_edges.get(v)
             if not edges:
+                # v may be isolated, in that case it cannot spread in this step.
                 continue
             e = random.choice(edges)
-            for u in sorted(G[e], key=str):
+            for u in sorted(G.edges[e], key=str):
                 if u not in infected and random.random() < beta:
                     new_infected.add(u)
 
