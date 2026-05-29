@@ -18,11 +18,20 @@ def SICP(G: Hypergraph, S, beta, T, return_series=False):
     infected = set(S)
     series = [set(infected)] 
 
-    # node -> list of incident edges (uniform choice over these)
-    node_to_edges: dict[str, list[str]] = defaultdict(list)
-    for eid, nodes in G.hyperedges.items():
-        for u in nodes:
-            node_to_edges[u].append(eid)
+    node_to_edges = getattr(G, "_sicp_node_to_edges", None)
+    sorted_hyperedges = getattr(G, "_sicp_sorted_hyperedges", None)
+
+    if node_to_edges is None or sorted_hyperedges is None:
+        node_to_edges = defaultdict(list)
+        sorted_hyperedges = {}
+
+        for eid, nodes in G.hyperedges.items():
+            sorted_hyperedges[eid] = sorted(nodes, key=str)
+            for u in nodes:
+                node_to_edges[u].append(eid)
+
+        G._sicp_node_to_edges = node_to_edges
+        G._sicp_sorted_hyperedges = sorted_hyperedges
 
     for _ in range(T):
         cur = sorted(infected, key=str)
@@ -34,7 +43,7 @@ def SICP(G: Hypergraph, S, beta, T, return_series=False):
                 # v may be isolated, and can thus not spread, but remains infected
                 continue
             e = random.choice(edges)
-            for u in sorted(G.hyperedges[e], key=str):
+            for u in sorted_hyperedges[e]:
                 if u not in infected and random.random() < beta:
                     new_infected.add(u)
 
@@ -43,7 +52,9 @@ def SICP(G: Hypergraph, S, beta, T, return_series=False):
         #     break
 
         infected |= new_infected
-        series.append(set(infected))
+
+        if return_series:
+            series.append(set(infected))
 
     return series if return_series else infected
 
@@ -58,8 +69,6 @@ def SICP_set(G: Hypergraph, S, beta, T) -> set[str]:
     - beta: infection probability 
     - T: number of timesteps
     """
-    from collections import defaultdict
-    import random
 
     invalid = set(S) - G.nodes
     if invalid:
