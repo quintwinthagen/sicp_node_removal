@@ -548,3 +548,194 @@ def make_adaptive_removal(removal_func, batch=1):
         return removed[:K]
 
     return wrapped
+
+
+
+def _hyperci_hyperedge_layers(graph: Hypergraph, source):
+    """
+    Compute exact hyperedge layers around `source` in the bipartite
+    node-hyperedge representation of the hypergraph.
+
+    Returns
+    -------
+    dict[int, set]
+        layers[L] = set of hyperedge IDs at exact hyperedge-distance L from source.
+
+    Notes
+    -----
+    - L=1 are the incident hyperedges of `source`.
+    - L=2 are hyperedges reached by:
+          source -> incident hyperedge -> node -> hyperedge
+      excluding already-seen hyperedges.
+    """
+    inv_graph = inverse_graph_edges(graph)
+
+    seen_nodes = {source}
+    seen_hedges = set()
+
+    node_frontier = {source}
+    layers = {}
+    depth = 0
+
+    while node_frontier:
+        # Next hyperedge layer from current node frontier
+        hedge_frontier = set()
+        for node in node_frontier:
+            hedge_frontier.update(inv_graph.get(node, []))
+        hedge_frontier -= seen_hedges
+
+        if not hedge_frontier:
+            break
+
+        depth += 1
+        layers[depth] = hedge_frontier
+        seen_hedges |= hedge_frontier
+
+        # Move back to node side
+        next_nodes = set()
+        for hedge in hedge_frontier:
+            next_nodes.update(graph.hyperedges[hedge])
+        next_nodes -= seen_nodes
+
+        if not next_nodes:
+            break
+
+        seen_nodes |= next_nodes
+        node_frontier = next_nodes
+
+    return layers
+
+
+def _hyperci_self_influence(graph: Hypergraph, node, inv_graph=None):
+    """
+    Equation (7):
+        inf(v_i) = (d^h(v_i) - 1) / | intersection_{e in Gamma(v_i)} e |
+
+    Returns 0.0 for isolated nodes.
+    """
+    if inv_graph is None:
+        inv_graph = inverse_graph_edges(graph)
+
+    incident = inv_graph.get(node, [])
+    hdeg = len(incident)
+
+    if hdeg == 0:
+        return 0.0
+    if hdeg == 1:
+        return 0.0  # (d^h - 1) = 0
+
+    common = set(graph.hyperedges[incident[0]])
+    for hedge in incident[1:]:
+        common &= graph.hyperedges[hedge]
+
+    cooccurrence_degree = len(common)
+    if cooccurrence_degree == 0:
+        return 0.0
+
+    return (hdeg - 1) / cooccurrence_degree
+
+
+def _hyperci_edge_influence(graph: Hypergraph, node, L, inv_graph=None, layers=None):
+    """
+    Equation (8), implemented from the paper's text + worked example.
+
+    inf^E(v_i; L) =
+        |Gamma(v_i; L)| +
+        sum_{e in Gamma(v_i; L)}
+            [ sum_{u in e} |Gamma(u) ∩ Gamma(v_i; L+1)| ] / |tau(e, v_i)|
+
+    where tau(e, v_i) is interpreted as the set of nodes in e that connect
+    outward to at least one hyperedge in Gamma(v_i; L+1).
+
+    Returns 0.0 if there is no L-hop hyperedge layer.
+    """
+    if inv_graph is None:
+        inv_graph = inverse_graph_edges(graph)
+    if layers is None:
+        layers = _hyperci_hyperedge_layers(graph, node)
+
+    gamma_L = layers.get(L, set())
+    if not gamma_L:
+        return 0.0
+
+    gamma_next = layers.get(L + 1, set())
+    score = float(len(gamma_L))
+
+    # If there is no outward layer, only the base |Gamma(v_i;L)| term remains.
+    if not gamma_next:
+        return score
+
+    for hedge in gamma_L:
+        nodes_in_hedge = graph.hyperedges[hedge]
+
+        outward_counts = []
+        tau = 0
+
+        for u in nodes_in_hedge:
+            count = len(set(inv_graph.get(u, [])) & gamma_next)
+            outward_counts.append(count)
+            if count > 0:
+                tau += 1
+
+        if tau > 0:
+            score += sum(outward_counts) / tau
+
+    return score
+
+
+def _hyperci_neighbor_node_influence(graph: Hypergraph, node, L, layers=None):
+    """
+    Equation (9):
+        inf^N(v_i; L) = | union_{e in Gamma(v_i; L)} e |
+    """
+    if layers is None:
+        layers = _hyperci_hyperedge_layers(graph, node)
+
+    gamma_L = layers.get(L, set())
+    if not gamma_L:
+        return 0.0
+
+    union_nodes = set()
+    for hedge in gamma_L:
+        union_nodes.update(graph.hyperedges[hedge])
+
+    return float(len(union_nodes))
+
+
+def hyperci_scores(graph: Hypergraph, L: int):
+    """
+    Compute HyperCI scores for all nodes.
+
+    Equation (10):
+        HyperCI(v_i; L) = inf(v_i) * inf^E(v_i; L) * inf^N(v_i; L)
+    """
+    inv_graph = inverse_graph_edges(graph)
+    scores = {}
+
+    for node in graph.nodes:
+        layers = _hyperci_hyperedge_layers(graph, node)
+
+        inf_self = _hyperci_self_influence(graph, node, inv_graph=inv_graph)
+        inf_edge = _hyperci_edge_influence(
+            graph, node, L, inv_graph=inv_graph, layers=layers
+        )
+        inf_node = _hyperci_neighbor_node_influence(
+            graph, node, L, layers=layers
+        )
+
+        scores[node] = inf_self * inf_edge * inf_node
+
+    return scores
+
+
+def hyperci_removal(graph: Hypergraph, K: int):
+    """
+    Rank nodes by HyperCI score and return the top-K nodes.
+    """
+    score = hyperci_scores(graph, 2)
+
+    return sorted(
+        graph.nodes,
+        key=lambda n: (score[n], str(n)),
+        reverse=True
+    )[:K]
