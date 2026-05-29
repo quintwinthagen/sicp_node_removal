@@ -1,0 +1,100 @@
+name: Run Simulation Parameterized
+
+on:
+  workflow_dispatch:
+    inputs:
+      sim_module:
+        description: "Python sim module to run"
+        required: true
+        default: sim_configs.test_sim
+
+      title:
+        description: "Optional run title"
+        required: false
+        default: ""
+
+
+jobs:
+  run-sim:
+    runs-on: [self-hosted, linux, x64, sim, docker]
+    timeout-minutes: 1440
+    container:
+      image: python:3.12-slim
+      options: --volume /srv:/srv
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync
+
+      - name: Generate Run Timestamp
+        run: |
+
+          TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
+          RAND=$(printf "%04x" $((RANDOM % 65536)))
+          RUN_ID="${TIMESTAMP}_${RAND}"
+
+          echo "TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+
+          echo "Using run id: $RUN_ID"
+
+
+      - name: Prepare output directory
+        run: |
+          SIM_MODULE="${{ github.event.inputs.sim_module }}"
+          SIM_NAME="${SIM_MODULE##*.}"
+          TITLE="${{ github.event.inputs.title }}"
+
+          # sanitize title (replace spaces and slashes)
+          TITLE_CLEAN=$(echo "$TITLE" | tr ' /' '__')
+
+          if [ -n "$TITLE_CLEAN" ]; then
+            OUTPUT_DIR="/srv/sim_outputs/${SIM_NAME}_${TITLE_CLEAN}_${RUN_ID}"
+          else
+            OUTPUT_DIR="/srv/sim_outputs/${SIM_NAME}_${RUN_ID}"
+          fi
+
+          mkdir -p "$OUTPUT_DIR"
+
+          echo "SIM_NAME=$SIM_NAME" >> $GITHUB_ENV
+          echo "OUTPUT_DIR=$OUTPUT_DIR" >> $GITHUB_ENV
+
+          echo "Using output dir: $OUTPUT_DIR"
+
+
+      - name: Save metadata
+        run: |
+          {
+            echo "commit: $GITHUB_SHA"
+            echo "branch: $GITHUB_REF_NAME"
+            echo "timestamp: $TIMESTAMP"
+            echo "run_id: $RUN_ID"
+            echo "sim_module: ${{ github.event.inputs.sim_module }}"
+            echo "sim_name: $SIM_NAME"
+            echo "title: ${{ github.event.inputs.title }}"
+          } > "$OUTPUT_DIR/metadata.txt"
+
+      - name: Run simulation
+        run: |
+          set -o pipefail
+          LOG_FILE="$OUTPUT_DIR/simulation.log"
+          echo "Logging to $LOG_FILE"
+          uv run python -m "${{ github.event.inputs.sim_module }}" \
+            -o "$OUTPUT_DIR" \
+            2>&1 | tee "$LOG_FILE"
+
+      - name: Verify output
+        run: |
+          ls -R "$OUTPUT_DIR"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-results-${{ env.RUN_ID }}
+          path: ${{ env.OUTPUT_DIR }}
