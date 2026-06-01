@@ -225,55 +225,6 @@ def ept_broker_strength(graph, beta, K, eps=1e-12):
 
 
 
-def ept_pagerank_removal(graph: Hypergraph, beta, K, d=0.85, iters=50):
-    ept = build_ept(graph, beta)
-
-    # Collect EPT-visible nodes
-    nodes = set(ept.keys())
-    for u, nbrs in ept.items():
-        nodes.update(nbrs.keys())
-    nodes = list(nodes)
-
-    if not nodes:
-        return sorted(graph.nodes, key=str, reverse=True)[:K]
-
-    idx = {u: i for i, u in enumerate(nodes)}
-    n = len(nodes)
-
-    # Normalize outgoing weights to probabilities
-    out_sum = defaultdict(float)
-    for u, nbrs in ept.items():
-        out_sum[u] = sum(nbrs.values())
-
-    # PageRank vector
-    pr = [1.0 / n] * n
-    base = (1.0 - d) / n
-
-    for _ in range(iters):
-        new = [base] * n
-
-        for u, nbrs in ept.items():
-            su = out_sum[u]
-            if su <= 0:
-                continue
-            pu = pr[idx[u]]
-            for v, w in nbrs.items():
-                new[idx[v]] += d * pu * (w / su)
-
-        pr = new
-
-    score = {u: 0.0 for u in graph.nodes}
-    for u in nodes:
-        score[u] = pr[idx[u]]
-
-    return sorted(
-        graph.nodes,
-        key=lambda u: (score[u], str(u)),
-        reverse=True
-    )[:K]
-
-
-
 def ept_total_strength(graph, beta, K):
     ept = build_ept(graph, beta)
 
@@ -420,36 +371,6 @@ def responsibility_weighted_hdeg_removal(graph: Hypergraph, communities, K):
         reverse=True
     )[:K]
     
-# def filtered_hyperdegree_removal(graph: Hypergraph, communities, K):
-#     """
-#     Filtered hyperdegree: count only hyperedges for which the node is responsible for inter-community mixing.
-#     """
-#     inv_comm = inverse_communities(communities)
-#     inv_graph = inverse_graph_edges(graph)
-
-#     # Precompute community sets per hyperedge
-#     hedge_to_communities = {}
-#     for hedge, nodes in graph.hyperedges.items():
-#         hedge_to_communities[hedge] = {
-#             inv_comm[n] for n in nodes if n in inv_comm
-#         }
-
-#     score = defaultdict(int)
-
-#     for node, hedges in inv_graph.items():
-#         node_comm = inv_comm[node]
-#         for hedge in hedges:
-#             before = hedge_to_communities[hedge]
-#             if node_comm not in before:
-#                 continue
-
-#             after = before - {node_comm}
-#             # count this hyperedge only if node is responsible
-#             if len(after) < len(before):
-#                 score[node] += 1
-
-#     return sorted(score, key=score.get, reverse=True)[:K]
-
 
 def avg_hyperedge_size_removal(graph: Hypergraph, K: int):
     """Rank all nodes by average size of their incident hyperedges.
@@ -508,7 +429,7 @@ def random_based_removal(graph:Hypergraph, K):
     return random.sample(list(graph.nodes), K)
 
 
-def remove_nodes(graph: Hypergraph, node_ids: list[str]):
+def remove_nodes(graph: Hypergraph, node_ids: list[str]) -> Hypergraph:
     node_ids = set(node_ids)
 
     ret_nodes = graph.nodes - node_ids
