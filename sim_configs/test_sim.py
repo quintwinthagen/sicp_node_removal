@@ -1,4 +1,4 @@
-from core.removal import adaptive_deg, make_adaptive_removal, random_based_removal, degree_based_removal
+from core.removal import random_based_removal, degree_based_removal, random_based_removal
 from scripts.sim_runner import *
 
 parameters = SimParameters(
@@ -13,9 +13,8 @@ parameters = SimParameters(
 
 strategies = [
     EMPTY_STRATEGY,
-    Strategy("decorated_deg", adaptive_deg, need_beta=False, need_community=False),
+    Strategy("random", random_based_removal, repeat=10),
     Strategy("degree", degree_based_removal, need_beta=False, need_community=False),
-    Strategy("adaptive deg", make_adaptive_removal(degree_based_removal, batch=1), need_beta=False, need_community=False)
 ]
 
 if __name__ == "__main__":

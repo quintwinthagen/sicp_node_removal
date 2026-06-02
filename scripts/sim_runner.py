@@ -1,4 +1,5 @@
 # Comprehensive multi-dataset, multi-p comparison with file saves\
+from collections import defaultdict
 import sys
 sys.stdout.reconfigure(line_buffering=True)
 
@@ -32,12 +33,13 @@ class Strategy:
     removal_func: Callable[..., List[str]]
     need_community: bool = False
     need_beta: bool = False
+    repeat: int = 1
 
 EMPTY_STRATEGY = Strategy(
     name="EMPTY_STRATEGY",
     removal_func=lambda graph, K : [],
     need_community=False,
-    need_beta=False,
+    need_beta=False
 )
 
 def run_sims(parameters: SimParameters, strategies: List[Strategy]): 
@@ -59,7 +61,7 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
         if not strategy.need_beta and not strategy.need_community:
             return lambda graph, communities, K: strategy.removal_func(graph, K=K)
 
-    STRATEGIES = [(strat.name, _get_removal_func(strat)) for strat in strategies]
+    STRATEGIES = [(strat.name, _get_removal_func(strat), strat.repeat) for strat in strategies]
 
     csv_header = ['dataset', 'p', 'strategy', 'K', 'remaining_nodes', 'timestep', 'mean_infected']
 
@@ -96,15 +98,16 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
             removed_graphs = {}
             strategy_start = time.time()
 
-            for strat_name, strat_func in STRATEGIES:
-                try:
-                    nodes_to_remove = strat_func(temp_graph, communities, K)
-                    removed_graphs[strat_name] = remove_nodes(temp_graph, nodes_to_remove)
-                    print(f"      OK {strat_name}, removed {len(nodes_to_remove)} nodes ({len(removed_graphs[strat_name].nodes) - len(set.union(*removed_graphs[strat_name].hyperedges.values()))} disconnected)")
-                except Exception as e:
-                    print(traceback.format_exc())
-                    print(f"      FAIL {strat_name}: {type(e).__name__}")
-                    removed_graphs[strat_name] = None
+            for strat_name, strat_func, repeat in STRATEGIES:
+                for i in range(repeat):
+                    try:
+                        nodes_to_remove = strat_func(temp_graph, communities, K)
+                        removed_graphs[(strat_name, i)] = remove_nodes(temp_graph, nodes_to_remove)
+                        print(f"      OK {strat_name}, removed {len(nodes_to_remove)} nodes ({len(removed_graphs[(strat_name, i)].nodes) - len(set.union(*removed_graphs[(strat_name, i)].hyperedges.values()))} disconnected)")
+                    except Exception as e:
+                        print(traceback.format_exc())
+                        print(f"      FAIL {strat_name}, repeat {repeat}: {type(e).__name__}")
+                        removed_graphs[(strat_name, i)] = None
 
             print(f"    Removal strategies done in {time.time() - strategy_start:.1f}s")
 
@@ -112,47 +115,74 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
             rows = []
             sicp_start = time.time()
 
-            for strat_idx, (strat_name, _) in enumerate(STRATEGIES, 1):
-                if removed_graphs[strat_name] is None:
-                    print(f"      [{strat_idx}/{len(STRATEGIES)}] {strat_name:<20} skipped")
-                    continue
+            for strat_idx, (strat_name, _, repeats) in enumerate(STRATEGIES, 1):
+                rows_per_repeat = defaultdict(list)
+                for i in range(repeats):
 
-                g_removed = removed_graphs[strat_name]
-                remaining_nodes = len(g_removed.nodes)
+                    if removed_graphs[(strat_name, i)] is None:
+                        print(f"      [{strat_idx}/{len(STRATEGIES)}] {strat_name:<20} skipped")
+                        continue
 
-                try:
-                    mean_counts = run_configured_sicp_intermediates(
-                        g_removed,
-                        seed_iterations=parameters.seed_iterations,
-                        beta=parameters.beta,
-                        T=parameters.timesteps,
-                        runs=parameters.runs,
-                        rng_seed=parameters.rng_seed,
-                    )
+                    g_removed = removed_graphs[(strat_name, i)]
+                    remaining_nodes = len(g_removed.nodes)
 
-                    if len(mean_counts) < parameters.timesteps + 1:
-                        mean_counts += [mean_counts[-1]] * (parameters.timesteps + 1 - len(mean_counts))
-                    elif len(mean_counts) > parameters.timesteps + 1:
-                        mean_counts = mean_counts[:parameters.timesteps+1]
+                    try:
+                        mean_counts = run_configured_sicp_intermediates(
+                            g_removed,
+                            seed_iterations=parameters.seed_iterations,
+                            beta=parameters.beta,
+                            T=parameters.timesteps,
+                            runs=parameters.runs,
+                            rng_seed=parameters.rng_seed + i,
+                        )
 
-                    for t, mean_inf in enumerate(mean_counts):
+                        if len(mean_counts) < parameters.timesteps + 1:
+                            mean_counts += [mean_counts[-1]] * (parameters.timesteps + 1 - len(mean_counts))
+                        elif len(mean_counts) > parameters.timesteps + 1:
+                            mean_counts = mean_counts[:parameters.timesteps+1]
+
+                        for t, mean_inf in enumerate(mean_counts):
+                            rows_per_repeat[i].append({
+                                'dataset': dataset,
+                                'p': p,
+                                'strategy': strat_name,
+                                'K': K,
+                                'remaining_nodes': remaining_nodes,
+                                'timestep': t,
+                                'mean_infected': mean_inf,
+                            })
+
+                        final_pct = 100.0 * mean_counts[-1] / remaining_nodes if remaining_nodes > 0 else 0.0
+                        print(f"      [{strat_idx}/{len(STRATEGIES)}] [repeat {i}] {strat_name:<20} final={mean_counts[-1]:6.1f} ({final_pct:5.1f}%)")
+
+                    except Exception as e:
+                        print(f"      [{strat_idx}/{len(STRATEGIES)}] [repeat {i}] {strat_name:<20} FAILED: {type(e).__name__}")
+
+                if rows_per_repeat:
+                    timestep_mean_infected = defaultdict(list)
+                    timestep_remaining_nodes = defaultdict(list)
+
+                    for repeat_rows in rows_per_repeat.values():
+                        for row in repeat_rows:
+                            t = row['timestep']
+                            timestep_mean_infected[t].append(row['mean_infected'])
+                            timestep_remaining_nodes[t].append(row['remaining_nodes'])
+
+                    for t in sorted(timestep_mean_infected.keys()):
+                        avg_mean_infected = sum(timestep_mean_infected[t]) / len(timestep_mean_infected[t])
+                        avg_remaining_nodes = sum(timestep_remaining_nodes[t]) / len(timestep_remaining_nodes[t])
                         rows.append({
                             'dataset': dataset,
                             'p': p,
                             'strategy': strat_name,
                             'K': K,
-                            'remaining_nodes': remaining_nodes,
+                            'remaining_nodes': avg_remaining_nodes,
                             'timestep': t,
-                            'mean_infected': mean_inf,
+                            'mean_infected': avg_mean_infected,
                         })
 
-                    final_pct = 100.0 * mean_counts[-1] / remaining_nodes if remaining_nodes > 0 else 0.0
-                    print(f"      [{strat_idx}/{len(STRATEGIES)}] {strat_name:<20} final={mean_counts[-1]:6.1f} ({final_pct:5.1f}%)")
-
-                except Exception as e:
-                    print(f"      [{strat_idx}/{len(STRATEGIES)}] {strat_name:<20} FAILED: {type(e).__name__}")
-
-            if rows:
+                        
+            if rows:   
                 with open(dataset_out_file, 'a', newline='') as f:
                     csv.DictWriter(f, fieldnames=csv_header).writerows(rows)
                 print(f"    OK Saved {len(rows)} results in {time.time() - sicp_start:.1f}s")
