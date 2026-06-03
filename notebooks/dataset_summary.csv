@@ -1,0 +1,7 @@
+Dataset,Nodes,Hyperedges,Avg. hyperedge size,Max. hyperedge size,Avg. node degree,Max. node degree
+Algebra,423,1268,6.52,107,78.9,303
+Geometry,580,1193,10.47,230,164.79,474
+Restaurants-Rev,565,601,7.66,43,79.75,310
+Music-Rev,1106,694,15.13,83,167.88,865
+Bars-Rev,1234,1194,9.94,73,174.3,818
+contact-primary-school,242,12704,2.42,5,68.74,134

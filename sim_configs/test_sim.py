@@ -13,7 +13,7 @@ parameters = SimParameters(
 
 strategies = [
     EMPTY_STRATEGY,
-    Strategy("random", random_based_removal, repeat=10),
+    Strategy("random", random_based_removal, repeat=3),
     Strategy("degree", degree_based_removal, need_beta=False, need_community=False),
 ]
 

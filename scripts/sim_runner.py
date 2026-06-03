@@ -153,10 +153,10 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
                             })
 
                         final_pct = 100.0 * mean_counts[-1] / remaining_nodes if remaining_nodes > 0 else 0.0
-                        print(f"      [{strat_idx}/{len(STRATEGIES)}] [repeat {i}] {strat_name:<20} final={mean_counts[-1]:6.1f} ({final_pct:5.1f}%)")
+                        print(f"      [{strat_idx}/{len(STRATEGIES)}] [repeat {i+1}/ {repeats}] {strat_name:<20} final={mean_counts[-1]:6.1f} ({final_pct:5.1f}%)")
 
                     except Exception as e:
-                        print(f"      [{strat_idx}/{len(STRATEGIES)}] [repeat {i}] {strat_name:<20} FAILED: {type(e).__name__}")
+                        print(f"      [{strat_idx}/{len(STRATEGIES)}] [repeat {i+1}/{repeats}] {strat_name:<20} FAILED: {type(e).__name__}")
 
                 if rows_per_repeat:
                     timestep_mean_infected = defaultdict(list)
@@ -180,6 +180,11 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
                             'timestep': t,
                             'mean_infected': avg_mean_infected,
                         })
+
+                    if repeats > 1:
+                        final_avg_infected = sum(timestep_mean_infected[parameters.timesteps]) / len(timestep_mean_infected[parameters.timesteps])
+                        final_avg_pct = 100.0 * final_avg_infected / avg_remaining_nodes if avg_remaining_nodes > 0 else 0.0
+                        print(f"      [avg over {repeats} repeats] {strat_name:<20} final={final_avg_infected:6.1f} ({final_avg_pct:5.1f}%)")
 
                         
             if rows:   
