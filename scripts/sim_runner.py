@@ -74,7 +74,7 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
         print("="*70)
 
         print("  Loading graph...")
-        temp_graph, communities = load_graph_and_communities(dataset, tau=2, verbose=False)
+        temp_graph, communities = load_graph_and_communities(dataset, tau=0, verbose=False)
         all_nodes = temp_graph.nodes
         N = len(all_nodes)
 
