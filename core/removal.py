@@ -338,38 +338,38 @@ def count_ic_hedges(graph: Hypergraph, communities, K):
     )[:K]
 
 
-def responsibility_weighted_hdeg_removal(graph: Hypergraph, communities, K):
-    inv_comm = inverse_communities(communities)
-    inv_graph = inverse_graph_edges(graph)
+# def responsibility_weighted_hdeg_removal(graph: Hypergraph, communities, K):
+#     inv_comm = inverse_communities(communities)
+#     inv_graph = inverse_graph_edges(graph)
 
-    hedge_to_communities = {}
-    for hedge, nodes in graph.hyperedges.items():
-        hedge_to_communities[hedge] = {
-            inv_comm[n] for n in nodes if n in inv_comm
-        }
+#     hedge_to_communities = {}
+#     for hedge, nodes in graph.hyperedges.items():
+#         hedge_to_communities[hedge] = {
+#             inv_comm[n] for n in nodes if n in inv_comm
+#         }
 
-    resp = defaultdict(int)
+#     resp = defaultdict(int)
 
-    # add responsibility score
-    for node, hedges in inv_graph.items():
-        node_comm = inv_comm[node]
-        for hedge in hedges:
-            before = hedge_to_communities[hedge]
-            if node_comm not in before:
-                continue
+#     # add responsibility score
+#     for node, hedges in inv_graph.items():
+#         node_comm = inv_comm[node]
+#         for hedge in hedges:
+#             before = hedge_to_communities[hedge]
+#             if node_comm not in before:
+#                 continue
 
-            after = before - {node_comm}
-            resp[node] += max(0, len(before) - len(after))
+#             after = before - {node_comm}
+#             resp[node] += max(0, len(before) - len(after))
     
-    # add hyperdegree term
-    for node, hedges in inv_graph.items():
-        resp[node] += len(hedges)
+#     # add hyperdegree term
+#     for node, hedges in inv_graph.items():
+#         resp[node] += len(hedges)
 
-    return sorted(
-        graph.nodes,
-        key=lambda node: (resp[node], str(node)),
-        reverse=True
-    )[:K]
+#     return sorted(
+#         graph.nodes,
+#         key=lambda node: (resp[node], str(node)),
+#         reverse=True
+#     )[:K]
     
 
 def avg_hyperedge_size_removal(graph: Hypergraph, K: int):
