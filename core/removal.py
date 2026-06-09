@@ -28,50 +28,6 @@ def inverse_graph_edges(graph: Hypergraph):
     return node_to_hedge
 
 
-## dict[hedge id --> {node ids}]
-# def inverse_graph(graph):
-#     node_to_hedge = defaultdict(list)
-#     for hedge, nodes in graph.items():
-#         for node in nodes:
-#             node_to_hedge[node].append(hedge)
-#     return node_to_hedge
-
-# Use make_greedy_removal
-## remove_nodes_greedily(count_ic_edges, (graph, communities), 14, 1) : returns graph with nodes removed greedily
-# def remove_nodes_greedily(func: Callable[..., List[str]], args, K, batch):
-#     full_iterations = K // batch
-#     remaining_nodes = K % batch
-
-#     g = args[0]
-#     c = None
-
-#     # Detect a communities mapping robustly (dict, defaultdict, etc.)
-#     if len(args) > 1 and isinstance(args[1], Mapping):
-#         c = args[1]
-    
-
-#     Ks = full_iterations * [batch]
-#     if remaining_nodes:
-#         Ks.append(remaining_nodes)
-
-#     for i in range(full_iterations + (1 if remaining_nodes > 0 else 0)):
-#         removal_amount = Ks[i]
-#         if c is not None: to_remove = func(g, c, *args[2:], removal_amount)
-#         else: to_remove = func(g, *args[1:], removal_amount)
-#         g = remove_nodes(g, to_remove)
-
-#         # Keep updating communities as long as a mapping was provided
-#         if c is not None:
-#             new_c = {}
-#             for comm_label, nodes in c.items():
-#                 pruned_nodes = set(nodes)
-#                 for n in to_remove:
-#                     pruned_nodes.discard(n)
-#                 new_c[comm_label] = pruned_nodes
-#             c = new_c
-
-#     return g
-
 def _ept_bridge_strengths(graph, communities, beta):
     """
     Returns:
@@ -103,15 +59,6 @@ def _ept_bridge_strengths(graph, communities, beta):
     return bridge_out, bridge_in, out_strength
 
 
-def ept_bridge_out_strength_removal(graph: Hypergraph, communities, beta, K):
-    bridge_out, _, _ = _ept_bridge_strengths(graph, communities, beta)
-    return sorted(
-        graph.nodes,
-        key=lambda u: (bridge_out[u], str(u)),
-        reverse=True
-    )[:K]
-
-
 def ept_bridge_in_strength_removal(graph: Hypergraph, communities, beta, K):
     _, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
     return sorted(
@@ -119,111 +66,6 @@ def ept_bridge_in_strength_removal(graph: Hypergraph, communities, beta, K):
         key=lambda v: (bridge_in[v], str(v)),
         reverse=True
     )[:K]
-
-
-def ept_bridge_in_and_out_total(graph, communities, beta, K):
-    ept = build_ept(graph, beta)
-    _, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
-
-    out_s = defaultdict(float)
-    in_s  = defaultdict(float)
-
-    for u, nbrs in ept.items():
-        for v, w in nbrs.items():
-            out_s[u] += w
-            in_s[v]  += w
-
-    score = {u: out_s[u] + in_s[u] + 2 * bridge_in[u] for u in graph.nodes}
-    return sorted(
-        graph.nodes,
-        key=lambda u: (score[u], str(u)),
-        reverse=True
-    )[:K]
-
-
-def ept_boundary_strength_removal(graph: Hypergraph, communities, beta, K):
-    bridge_out, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
-
-    score = {x: bridge_out[x] + bridge_in[x] for x in graph.nodes}
-    return sorted(
-        graph.nodes,
-        key=lambda x: (score[x], str(x)),
-        reverse=True
-    )[:K]
-
-
-
-def ept_bridge_out_fraction_removal(graph: Hypergraph, communities, beta, K, eps=1e-12):
-    bridge_out, _, out_strength = _ept_bridge_strengths(graph, communities, beta)
-
-    score = {}
-    for u in graph.nodes:
-        score[u] = bridge_out[u] / (out_strength[u] + eps)
-
-    return sorted(graph.nodes, key=lambda u: (score[u], str(u)), reverse=True)[:K]
-
-
-def ept_bridge_broker_removal(graph: Hypergraph, communities, beta, K, eps=1e-12):
-    bridge_out, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
-
-    score = {x: (bridge_in[x] + eps) * (bridge_out[x] + eps) for x in graph.nodes}
-    return sorted(
-        graph.nodes,
-        key=lambda x: (score[x], str(x)),
-        reverse=True
-    )[:K]
-
-
-
-def ept_boundary_ratio_removal(graph: Hypergraph, communities, beta, K, eps=1e-12):
-    inv_comm = inverse_communities(communities)
-    ept = build_ept(graph, beta)
-
-    bridge_out = defaultdict(float)
-    within_out = defaultdict(float)
-
-    for u, nbrs in ept.items():
-        cu = inv_comm.get(u, None)
-        if cu is None:
-            continue
-        for v, w_uv in nbrs.items():
-            cv = inv_comm.get(v, None)
-            if cv is None:
-                continue
-            if cu == cv:
-                within_out[u] += w_uv
-            else:
-                bridge_out[u] += w_uv
-
-    score = {u: bridge_out[u] / (within_out[u] + eps) for u in graph.nodes}
-
-    return sorted(
-        graph.nodes,
-        key=lambda u: (score[u], str(u)),
-        reverse=True
-    )[:K]
-
-def ept_broker_strength(graph, beta, K, eps=1e-12):
-    ept = build_ept(graph, beta)
-
-    out_s = defaultdict(float)
-    in_s  = defaultdict(float)
-
-    for u, nbrs in ept.items():
-        for v, w in nbrs.items():
-            out_s[u] += w
-            in_s[v]  += w
-
-
-    score = {u: (in_s[u] + eps) * (out_s[u] + eps) for u in graph.nodes}
-
-    return sorted(
-        graph.nodes,
-        key=lambda u: (score[u], str(u)),
-        reverse=True
-    )[:K]
-
-
 
 def ept_total_strength(graph, beta, K):
     ept = build_ept(graph, beta)
@@ -243,153 +85,97 @@ def ept_total_strength(graph, beta, K):
         reverse=True
     )[:K]
 
-
-def ept_out_strength(graph, beta, K):
+def ept_bridge_participation_ratio_removal(graph: Hypergraph, communities, beta, K, eps=1e-12):
+    """
+    Rank nodes by their total bridge footprint (in + out) divided by their 
+    total global transmission strength (in + out) in the EPT projection.
+    """
+    # Reuse your existing internal strength calculation helper
+    bridge_out, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
     ept = build_ept(graph, beta)
 
-    score = {
-        u: sum(ept[u].values()) if u in ept else 0.0
-        for u in graph.nodes
-    }
+    # Compute global out-strength and in-strength profiles for normalization
+    out_strength = defaultdict(float)
+    in_strength = defaultdict(float)
+
+    for u, nbrs in ept.items():
+        for v, w in nbrs.items():
+            out_strength[u] += w
+            in_strength[v]  += w
+
+    score = {}
+    for u in graph.nodes:
+        total_bridges = bridge_out[u] + bridge_in[u]
+        total_strength = out_strength[u] + in_strength[u]
+        
+        # Calculate the proportional boundary dedication of the node
+        score[u] = total_bridges / (total_strength + eps)
+
     return sorted(
-        score.keys(),
-        key=lambda n: (score[n], str(n)),
-        reverse=True,
+        graph.nodes,
+        key=lambda u: (score[u], str(u)),
+        reverse=True
     )[:K]
 
-
-def count_communities_in_hedges_removal(graph: Hypergraph, communities, K):
-    """Rank nodes by the number of unique communities seen across incident hyperedges."""
+def hyperedge_community_diversity_removal(graph: Hypergraph, communities, K):
+    """
+    Rank nodes by the number of unique EXTERNAL communities they are exposed to
+    natively via their higher-order incident hyperedges.
+    """
+    # Reference your pre-existing structural inversions
     inv_graph = inverse_graph_edges(graph)
     inv_comm = inverse_communities(communities)
-    # Precompute each hyperedge's labeled communities once to avoid repeated scans.
+
+    # Precompute each hyperedge's community distribution exactly like your code pattern
     hedge_to_communities = {}
     for hedge, nodes in graph.hyperedges.items():
         hedge_to_communities[hedge] = {
             inv_comm[nei] for nei in nodes if nei in inv_comm
         }
 
-    # Per node: count unique communities appearing across incident hyperedges.
-    community_factor = {}
+    score = {}
     for node, hedges in inv_graph.items():
-        unique_communities = set()
+        unique_ext_communities = set()
+        node_comm = inv_comm.get(node, None)
+
         for hedge in hedges:
-            unique_communities.update(hedge_to_communities[hedge])
-        community_factor[node] = len(unique_communities)
+            unique_ext_communities.update(hedge_to_communities[hedge])
+        
+        # Explicitly remove the node's own community to strictly evaluate boundary diversity
+        if node_comm in unique_ext_communities:
+            unique_ext_communities.remove(node_comm)
+            
+        score[node] = len(unique_ext_communities)
 
     return sorted(
-        community_factor.keys(),
-        key=lambda n: (community_factor[n], str(n)),
-        reverse=True,
-    )[:K]
-
-# def ic_hedges_to_hdeg(graph, communities, K):
-#     """Rank nodes by inter-community incident edge count divided by hyperdegree."""
-#     inv_comm = inverse_communities(communities)
-#     inv_graph = inverse_graph(graph)
-#     inter_comm_hedges = set()
-#     for hedge, nodes in graph.items():
-#         unique_communities = set()
-#         unique_communities.update([inv_comm.get(node, "UNK") for node in nodes])
-#         if "UNK" in unique_communities:
-#             continue
-#             # raise ValueError("node has no recorded community")
-#         if len(unique_communities) > 1:
-#             inter_comm_hedges.add(hedge)
-
-#     node_to_inter_comm_occurences = Counter()
-#     for ic_hedge in inter_comm_hedges:
-#         node_to_inter_comm_occurences.update(graph[ic_hedge])
-    
-#     node_to_ic_hdeg_fraction = {}
-#     for node, ic_count in node_to_inter_comm_occurences.items():
-#         node_to_ic_hdeg_fraction[node] = ic_count / len(inv_graph[node]) # ic count / hdeg
-
-#     return sorted(node_to_ic_hdeg_fraction.keys(), key=lambda n: node_to_ic_hdeg_fraction[n], reverse=True)[:K]
-
-
-
-def count_ic_hedges(graph: Hypergraph, communities, K):
-    """Select nodes that appear most often in inter-community hyperedges."""
-    inv_comm = inverse_communities(communities)
-    inter_comm_hedges = set()
-
-    for hedge, nodes in graph.hyperedges.items():
-        unique_communities = set()
-        unique_communities.update([inv_comm.get(node, "UNK") for node in nodes])
-        if "UNK" in unique_communities:
-            continue
-        if len(unique_communities) > 1:
-            inter_comm_hedges.add(hedge)
-
-    node_to_inter_comm_occurences = Counter()
-    for ic_hedge in inter_comm_hedges:
-        node_to_inter_comm_occurences.update(graph.hyperedges[ic_hedge])
-
-    score = {
-        node: node_to_inter_comm_occurences[node]
-        for node in graph.nodes
-    }
-
-    return sorted(
-        graph.nodes,
-        key=lambda node: (score[node], str(node)),
+        score.keys(),
+        key=lambda n: (score[n], str(n)),
         reverse=True
     )[:K]
 
+def ept_intra_comm_strength(graph: Hypergraph, communities, beta, K):
+    ept = build_ept(graph, beta)
+    inv_comm = inverse_communities(communities)
 
-# def responsibility_weighted_hdeg_removal(graph: Hypergraph, communities, K):
-#     inv_comm = inverse_communities(communities)
-#     inv_graph = inverse_graph_edges(graph)
-
-#     hedge_to_communities = {}
-#     for hedge, nodes in graph.hyperedges.items():
-#         hedge_to_communities[hedge] = {
-#             inv_comm[n] for n in nodes if n in inv_comm
-#         }
-
-#     resp = defaultdict(int)
-
-#     # add responsibility score
-#     for node, hedges in inv_graph.items():
-#         node_comm = inv_comm[node]
-#         for hedge in hedges:
-#             before = hedge_to_communities[hedge]
-#             if node_comm not in before:
-#                 continue
-
-#             after = before - {node_comm}
-#             resp[node] += max(0, len(before) - len(after))
+    score = defaultdict(float)
     
-#     # add hyperdegree term
-#     for node, hedges in inv_graph.items():
-#         resp[node] += len(hedges)
-
-#     return sorted(
-#         graph.nodes,
-#         key=lambda node: (resp[node], str(node)),
-#         reverse=True
-#     )[:K]
-    
-
-def avg_hyperedge_size_removal(graph: Hypergraph, K: int):
-    """Rank all nodes by average size of their incident hyperedges.
-    Isolated nodes are assigned score 0.0 and therefore rank last.
-    """
-    incident_sizes = defaultdict(list)
-
-    for nodes in graph.hyperedges.values():
-        edge_size = len(nodes)
-        for n in nodes:
-            incident_sizes[n].append(edge_size)
-
-    avg = {}
     for node in graph.nodes:
-        sizes = incident_sizes.get(node)
-        avg[node] = (sum(sizes) / len(sizes)) if sizes else 0.0
+        c = inv_comm[node]
+        for same_comm_node in communities.get(c, []):
+            if node == same_comm_node:
+                continue
+            
+            w_out = ept.get(node, {}).get(same_comm_node, 0)
+            w_in  = ept.get(same_comm_node, {}).get(node, 0)
+            
+            score[node] += (w_out + w_in)
 
-    ranking = sorted(avg, key=lambda node: (-avg[node], str(node)))
-    return ranking[:K]
+    # Sort descending by score. Tie-breaker by node ID.
+    return sorted(
+        graph.nodes,
+        key=lambda n: (score[n], str(n)),
+        reverse=True
+    )[:K]
 
     
 
