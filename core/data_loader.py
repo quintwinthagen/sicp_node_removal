@@ -1,7 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 import pandas as pd
-import hypernetx as hnx
+# import hypernetx as hnx
 import os
 
 
@@ -11,30 +11,30 @@ class Hypergraph:
     nodes: set[str] = field(default_factory=set)
     hyperedges: dict[str, set[str]] = field(default_factory=dict)
 
-def to_hypernetx(custom_hg: Hypergraph) -> hnx.Hypergraph:
-    """
-    Converts a custom Hypergraph object to a hypernetx.Hypergraph object.
-    Uses a list of lists to avoid Pandas compatibility bugs in HNX.
-    """
-    # 1. Extract edges as a simple list of lists (or sets)
-    edges_list = []
-    for edge_id, node_set in custom_hg.hyperedges.items():
-        # Using string cast if your original data requires it for labels
-        edges_list.append([str(node_id) for node_id in node_set])
+# def to_hypernetx(custom_hg: Hypergraph) -> hnx.Hypergraph:
+#     """
+#     Converts a custom Hypergraph object to a hypernetx.Hypergraph object.
+#     Uses a list of lists to avoid Pandas compatibility bugs in HNX.
+#     """
+#     # 1. Extract edges as a simple list of lists (or sets)
+#     edges_list = []
+#     for edge_id, node_set in custom_hg.hyperedges.items():
+#         # Using string cast if your original data requires it for labels
+#         edges_list.append([str(node_id) for node_id in node_set])
 
-    if not edges_list:
-        return hnx.Hypergraph()
+#     if not edges_list:
+#         return hnx.Hypergraph()
 
-    # 2. Pass the list directly. HNX will automatically enumerate 
-    # the edges starting from 0, e.g., e0, e1, e2.
-    hnx_hg = hnx.Hypergraph(edges_list)
+#     # 2. Pass the list directly. HNX will automatically enumerate 
+#     # the edges starting from 0, e.g., e0, e1, e2.
+#     hnx_hg = hnx.Hypergraph(edges_list)
     
-    # 3. Add any isolated nodes (nodes that don't belong to any edge)
-    isolated_nodes = {str(n) for n in custom_hg.nodes} - {n for edge in edges_list for n in edge}
-    if isolated_nodes:
-        hnx_hg.add_nodes_from(list(isolated_nodes))
+#     # 3. Add any isolated nodes (nodes that don't belong to any edge)
+#     isolated_nodes = {str(n) for n in custom_hg.nodes} - {n for edge in edges_list for n in edge}
+#     if isolated_nodes:
+#         hnx_hg.add_nodes_from(list(isolated_nodes))
 
-    return hnx_hg
+#     return hnx_hg
 
 def load_hypergraph_from_txt(dataset):
     """
