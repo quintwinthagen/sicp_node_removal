@@ -22,6 +22,7 @@ class SimParameters:
     datasets: List[str]
     p_values: List[float]
     beta: float
+    tau: int
     timesteps: int
     runs: int
     rng_seed: int
@@ -74,12 +75,12 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
         print("="*70)
 
         print("  Loading graph...")
-        temp_graph, communities = load_graph_and_communities(dataset, tau=0, verbose=False)
+        temp_graph, communities = load_graph_and_communities(dataset, tau=parameters.tau, verbose=False)
         all_nodes = temp_graph.nodes
         N = len(all_nodes)
 
         connected_nodes = len(set.union(*temp_graph.hyperedges.values())) if temp_graph.hyperedges else 0
-        print(f"  OK Loaded: {len(temp_graph.hyperedges)} hyperedges, {N} nodes, ({N - connected_nodes} disconnected)")
+        print(f"  OK Loaded: {len(temp_graph.hyperedges)} hyperedges, {N} nodes, ({N - connected_nodes} disconnected), (tau: {parameters.tau})")
         print(f"Running with( BETA: {parameters.beta}, timesteps: {parameters.timesteps}, runs: {parameters.runs}, rng_seed: {parameters.rng_seed}, seed_iterations: {parameters.seed_iterations} )")
 
         dataset_out_file = out_dir / f"{dataset}_comprehensive_results.csv"
