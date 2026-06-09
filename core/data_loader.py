@@ -71,7 +71,7 @@ def load_labeled_hypergraph(dataset, source=False):
         # Load node labels and map to label names
         node_to_label = {}
         with open(f"{data_path}/node-labels-{dataset}.txt", 'r') as f:
-            for idx, line in enumerate(f):
+            for idx, line in enumerate(f, start=1):
                 label_idx = int(line.strip())
                 label_name = label_names[label_idx - 1]  # 1-based index
                 node_to_label[str(idx)] = label_name
