@@ -67,6 +67,15 @@ def ept_bridge_in_strength_removal(graph: Hypergraph, communities, beta, K):
         reverse=True
     )[:K]
 
+
+def ept_bridge_out_strength_removal(graph: Hypergraph, communities, beta, K):
+    bridge_out, _, _ = _ept_bridge_strengths(graph, communities, beta)
+    return sorted(
+        graph.nodes,
+        key=lambda v: (bridge_out[v], str(v)),
+        reverse=True
+    )[:K]
+
 def ept_total_strength(graph, beta, K):
     ept = build_ept(graph, beta)
 
