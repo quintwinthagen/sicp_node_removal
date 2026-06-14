@@ -317,7 +317,7 @@ def run_configured_sicp_intermediates(
 
         for run in range(1, runs + 1):
             unique_seed = rng_seed + (node_idx * 100000) + (run * 1000)
-            random.seed(rng_seed)
+            random.seed(unique_seed)
 
             infected_nodes_series = SICP(graph, seed_set, beta, T, return_series=True)
             for idx, infected in enumerate(infected_nodes_series):
