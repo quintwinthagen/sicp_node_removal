@@ -24,7 +24,9 @@ jobs:
           - sim_FINAL_D_gt
           - sim_FINAL_D_tau0
           - sim_FINAL_D_tau2
-          - sim_FINAL_Z
+          - sim_FINAL_Z1
+          - sim_FINAL_Z2
+          - sim_FINAL_Z3
 
     container:
       image: python:3.12-slim
