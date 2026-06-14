@@ -1,0 +1,67 @@
+name: Run Final Simulations (Parallel)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-sim:
+    runs-on: [self-hosted, linux, x64, sim, docker]
+    timeout-minutes: 1440
+
+    strategy:
+      fail-fast: false
+      matrix:
+        sim_name:
+          - sim_FINAL_A_gt
+          - sim_FINAL_A_tau0
+          - sim_FINAL_A_tau2
+          - sim_FINAL_B_gt
+          - sim_FINAL_B_tau0
+          - sim_FINAL_B_tau2
+          - sim_FINAL_C_gt
+          - sim_FINAL_C_tau0
+          - sim_FINAL_C_tau2
+          - sim_FINAL_D_gt
+          - sim_FINAL_D_tau0
+          - sim_FINAL_D_tau2
+          - sim_FINAL_Z
+
+    container:
+      image: python:3.12-slim
+      options: --volume /srv:/srv
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          pip install uv
+          uv sync
+
+      - name: Prepare output directory
+        run: |
+          OUTPUT_DIR="/srv/sim_outputs/${{ matrix.sim_name }}_run_${{ github.run_id }}"
+          mkdir -p "$OUTPUT_DIR"
+          echo "OUTPUT_DIR=$OUTPUT_DIR" >> $GITHUB_ENV
+          echo "Using output dir: $OUTPUT_DIR"
+
+      - name: Run simulation
+        run: |
+          set -o pipefail
+          LOG_FILE="$OUTPUT_DIR/simulation.log"
+          echo "Logging to $LOG_FILE"
+          uv run python -m sim_configs.sim_FINAL.${{ matrix.sim_name }} \
+            -o "$OUTPUT_DIR" \
+            2>&1 | tee "$LOG_FILE"
+
+      - name: Verify output
+        run: |
+          ls -R "$OUTPUT_DIR"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sim-results-${{ matrix.sim_name }}-${{ github.run_id }}
+          path: ${{ env.OUTPUT_DIR }}

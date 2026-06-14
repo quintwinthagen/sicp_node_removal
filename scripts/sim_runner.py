@@ -129,13 +129,14 @@ def run_sims(parameters: SimParameters, strategies: List[Strategy]):
                     remaining_nodes = len(g_removed.nodes)
 
                     try:
+                        isolated_repeat_seed = parameters.rng_seed + (i * 10000000)
                         mean_counts = run_configured_sicp_intermediates(
                             g_removed,
                             seed_iterations=parameters.seed_iterations,
                             beta=parameters.beta,
                             T=parameters.timesteps,
                             runs=parameters.runs,
-                            rng_seed=parameters.rng_seed + i,
+                            rng_seed=isolated_repeat_seed,
                         )
 
                         if len(mean_counts) < parameters.timesteps + 1:

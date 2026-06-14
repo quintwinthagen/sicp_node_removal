@@ -219,6 +219,34 @@ def degree_based_removal(graph: Hypergraph, K):
         reverse=True
     )[:K]
 
+
+def average_hyperedge_size_removal(graph: Hypergraph, K):
+    """
+    Select nodes with the highest average size of incident hyperedges.
+    Computes sum(|e|) / hdeg(v) for each node v.
+    """
+    node_sum = {node: 0 for node in graph.nodes}
+    node_hdeg = {node: 0 for node in graph.nodes}
+
+    for hedge_nodes in graph.hyperedges.values():
+        size = len(hedge_nodes)
+        for node in hedge_nodes:
+            node_sum[node] += size
+            node_hdeg[node] += 1
+
+    score = {}
+    for node in graph.nodes:
+        if node_hdeg[node] > 0:
+            score[node] = node_sum[node] / node_hdeg[node]
+        else:
+            score[node] = 0
+
+    return sorted(
+        graph.nodes,
+        key=lambda n: (score[n], str(n)),
+        reverse=True
+    )[:K]
+
 def random_based_removal(graph:Hypergraph, K):
     """Select K nodes uniformly at random from all nodes."""
     return random.sample(list(graph.nodes), K)

@@ -256,45 +256,46 @@ def run_configured_sicp(
     runs=10,
     rng_seed=175,
 ):
-    node_ids = graph.nodes
-    prevalences_per_timestep = defaultdict(set)
-    results_per_seed = {}
-    cnt = 0
-    for single_seed in node_ids:
-        cnt += 1
-        if cnt > seed_iterations: break
+    raise NotImplementedError()
+#     node_ids = graph.nodes
+#     prevalences_per_timestep = defaultdict(set)
+#     results_per_seed = {}
+#     cnt = 0
+#     for single_seed in node_ids:
+#         cnt += 1
+#         if cnt > seed_iterations: break
 
-        # print(type(single_seed))
+#         # print(type(single_seed))
 
-        # Seed nodes to start infection from.  You can use the seed_selection.py script to generate seed sets with different methods and use them here. 
-        # Can be added to config.py for easier access across scripts.
-        # Be aware that seed nodes are dataset-specific, so make sure to use a seed set that corresponds to the dataset you choose to run SICP on.
-        seed_set = [single_seed]
-        # print(f"seed set: {seed_set}")
+#         # Seed nodes to start infection from.  You can use the seed_selection.py script to generate seed sets with different methods and use them here. 
+#         # Can be added to config.py for easier access across scripts.
+#         # Be aware that seed nodes are dataset-specific, so make sure to use a seed set that corresponds to the dataset you choose to run SICP on.
+#         seed_set = [single_seed]
+#         # print(f"seed set: {seed_set}")
 
-        # Run SICP multiple times with a controlled RNG seed per run
-        infected_results = []
-        infected_node_sets = []
+#         # Run SICP multiple times with a controlled RNG seed per run
+#         infected_results = []
+#         infected_node_sets = []
 
-        for run in range(1, runs + 1):
-            random.seed(rng_seed + run)
-            infected_nodes = SICP_set(graph, seed_set, beta, T)
-            infected_node_sets.append(infected_nodes)
-            infected_results.append(len(infected_nodes))
+#         for run in range(1, runs + 1):
+#             random.seed(rng_seed + run)
+#             infected_nodes = SICP_set(graph, seed_set, beta, T)
+#             infected_node_sets.append(infected_nodes)
+#             infected_results.append(len(infected_nodes))
 
 
-        # print(f"final count min={min(infected_results)}, max={max(infected_results)}, mean={statistics.mean(infected_results):.3f}, std={statistics.pstdev(infected_results):.3f}")
-        # You can also use SICP to get the full series of infections over time, but here we just report the final count per run.
-        # see the SICP function in methods/SICP.py for how to get the series
+#         # print(f"final count min={min(infected_results)}, max={max(infected_results)}, mean={statistics.mean(infected_results):.3f}, std={statistics.pstdev(infected_results):.3f}")
+#         # You can also use SICP to get the full series of infections over time, but here we just report the final count per run.
+#         # see the SICP function in methods/SICP.py for how to get the series
 
-        results_per_seed[single_seed] = statistics.mean(infected_results)
-    return results_per_seed
+#         results_per_seed[single_seed] = statistics.mean(infected_results)
+#     return results_per_seed
 
 
 def run_configured_sicp_intermediates(
     graph: Hypergraph,
     seed_iterations,
-    beta=0.3,
+    beta=0.02,
     T=25,
     runs=10,
     rng_seed=175,
@@ -302,7 +303,7 @@ def run_configured_sicp_intermediates(
     node_ids = graph.nodes
     prevalences_per_timestep = [[] for _ in range(T + 1)]
     cnt = 0
-    for single_seed in node_ids:
+    for node_idx, single_seed in enumerate(node_ids):
         cnt += 1
         if seed_iterations and (cnt > seed_iterations): break
 
@@ -315,7 +316,9 @@ def run_configured_sicp_intermediates(
         # print(f"seed set: {seed_set}")
 
         for run in range(1, runs + 1):
-            random.seed(rng_seed + run)
+            unique_seed = rng_seed + (node_idx * 100000) + (run * 1000)
+            random.seed(rng_seed)
+
             infected_nodes_series = SICP(graph, seed_set, beta, T, return_series=True)
             for idx, infected in enumerate(infected_nodes_series):
                 prevalences_per_timestep[idx].append(len(infected))
