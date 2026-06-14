@@ -6,7 +6,7 @@ sys.stdout.reconfigure(line_buffering=True)
 import traceback
 
 from dataclasses import dataclass
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 import csv
 import time
@@ -22,7 +22,7 @@ class SimParameters:
     datasets: List[str]
     p_values: List[float]
     beta: float
-    tau: int
+    tau: Optional[int]
     timesteps: int
     runs: int
     rng_seed: int

@@ -2,7 +2,7 @@ from core.removal import *
 from scripts.sim_runner import *
 
 parameters = SimParameters(
-    datasets=['Algebra', 'Geometry'],
+    datasets=['Algebra'],
     p_values=[0.05, 0.1, 0.2],
     beta=0.02,
     tau=None,
