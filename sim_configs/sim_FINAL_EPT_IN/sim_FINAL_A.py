@@ -13,8 +13,8 @@ parameters = SimParameters(
 )
 
 strategies = [
-    Strategy("EPT_IS", ept_in_strength),
-    Strategy("aEPT_IS", make_adaptive_removal(ept_in_strength)),
+    Strategy("EPT_IS", ept_in_strength, need_beta=True),
+    Strategy("aEPT_IS", make_adaptive_removal(ept_in_strength), need_beta=True),
 ]
 
 if __name__ == "__main__":
