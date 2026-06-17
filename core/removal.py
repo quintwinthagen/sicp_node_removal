@@ -94,99 +94,23 @@ def ept_total_strength(graph, beta, K):
         reverse=True
     )[:K]
 
-def ept_bridge_participation_ratio_removal(graph: Hypergraph, communities, beta, K, eps=1e-12):
-    """
-    Rank nodes by their total bridge footprint (in + out) divided by their 
-    total global transmission strength (in + out) in the EPT projection.
-    """
-    # Reuse your existing internal strength calculation helper
-    bridge_out, bridge_in, _ = _ept_bridge_strengths(graph, communities, beta)
+
+def ept_in_strength(graph, beta, K):
     ept = build_ept(graph, beta)
 
-    # Compute global out-strength and in-strength profiles for normalization
-    out_strength = defaultdict(float)
-    in_strength = defaultdict(float)
+    in_s  = defaultdict(float)
 
     for u, nbrs in ept.items():
         for v, w in nbrs.items():
-            out_strength[u] += w
-            in_strength[v]  += w
+            in_s[v]  += w
 
-    score = {}
-    for u in graph.nodes:
-        total_bridges = bridge_out[u] + bridge_in[u]
-        total_strength = out_strength[u] + in_strength[u]
-        
-        # Calculate the proportional boundary dedication of the node
-        score[u] = total_bridges / (total_strength + eps)
-
+    score = {u: in_s[u] for u in graph.nodes}
     return sorted(
         graph.nodes,
         key=lambda u: (score[u], str(u)),
         reverse=True
     )[:K]
 
-def hyperedge_community_diversity_removal(graph: Hypergraph, communities, K):
-    """
-    Rank nodes by the number of unique EXTERNAL communities they are exposed to
-    natively via their higher-order incident hyperedges.
-    """
-    # Reference your pre-existing structural inversions
-    inv_graph = inverse_graph_edges(graph)
-    inv_comm = inverse_communities(communities)
-
-    # Precompute each hyperedge's community distribution exactly like your code pattern
-    hedge_to_communities = {}
-    for hedge, nodes in graph.hyperedges.items():
-        hedge_to_communities[hedge] = {
-            inv_comm[nei] for nei in nodes if nei in inv_comm
-        }
-
-    score = {}
-    for node, hedges in inv_graph.items():
-        unique_ext_communities = set()
-        node_comm = inv_comm.get(node, None)
-
-        for hedge in hedges:
-            unique_ext_communities.update(hedge_to_communities[hedge])
-        
-        # Explicitly remove the node's own community to strictly evaluate boundary diversity
-        if node_comm in unique_ext_communities:
-            unique_ext_communities.remove(node_comm)
-            
-        score[node] = len(unique_ext_communities)
-
-    return sorted(
-        score.keys(),
-        key=lambda n: (score[n], str(n)),
-        reverse=True
-    )[:K]
-
-def ept_intra_comm_strength(graph: Hypergraph, communities, beta, K):
-    ept = build_ept(graph, beta)
-    inv_comm = inverse_communities(communities)
-
-    score = defaultdict(float)
-    
-    for node in graph.nodes:
-        c = inv_comm[node]
-        for same_comm_node in communities.get(c, []):
-            if node == same_comm_node:
-                continue
-            
-            w_out = ept.get(node, {}).get(same_comm_node, 0)
-            w_in  = ept.get(same_comm_node, {}).get(node, 0)
-            
-            score[node] += (w_out + w_in)
-
-    # Sort descending by score. Tie-breaker by node ID.
-    return sorted(
-        graph.nodes,
-        key=lambda n: (score[n], str(n)),
-        reverse=True
-    )[:K]
-
-    
 
 def hyperdegree_based_removal(graph: Hypergraph, K):
     """Select nodes with highest hyperdegree (number of incident hyperedges)."""
